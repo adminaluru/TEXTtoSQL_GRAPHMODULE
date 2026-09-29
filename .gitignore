@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+
+# Environment / secrets
+.env
+
+# Testing
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+venv/
+FlowOne_Source_Review.zip
+app.py.bak
+
+FlowOne GQ doc.xlsx
+
+*.bak

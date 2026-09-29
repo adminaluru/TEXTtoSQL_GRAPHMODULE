@@ -1,0 +1,15 @@
+psycopg[binary]
+neo4j
+pydantic
+pydantic-settings
+pytest
+
+
+fastapi
+uvicorn
+httpx
+pydantic
+neo4j
+psycopg[binary]
+pytest
+openai
