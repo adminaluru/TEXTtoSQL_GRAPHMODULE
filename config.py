@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     app_name: str = "Research Agent"
     app_env: str = "dev"
     debug: bool = False
+    api_key: Optional[SecretStr] = None
+    rate_limit_requests_per_minute: int = 60
 
     # ------------------------------------------------------
     # PostgreSQL

@@ -10,6 +10,9 @@ from api.application import (
     create_app,
 )
 
+from config import settings
+
+api_key = settings.api_key.get_secret_value() if getattr(settings, "api_key", None) is not None else None
 from database.neo4j import (
     Neo4jClient,
 )
@@ -37,6 +40,20 @@ chat_model = OpenAIChatModel()
 
 neo4j = Neo4jClient()
 
+postgres_executor = PostgreSQLExecutor(
+    statement_timeout_ms=5000,
+    max_rows=100,
+)
+
+
+def _validate_runtime_dependencies() -> None:
+    """Fail fast when required backing services are unavailable."""
+    if not neo4j.health_check():
+        raise RuntimeError("Neo4j dependency unavailable.")
+
+    if not postgres_executor.health_check():
+        raise RuntimeError("PostgreSQL dependency unavailable.")
+
 
 # ==========================================================
 # RESEARCH AGENT
@@ -47,10 +64,7 @@ research_agent = build_research_agent(
 
     neo4j_client=neo4j,
 
-    postgres_executor=PostgreSQLExecutor(
-        statement_timeout_ms=5000,
-        max_rows=100,
-    ),
+    postgres_executor=postgres_executor,
 )
 
 
@@ -59,7 +73,9 @@ research_agent = build_research_agent(
 # ==========================================================
 
 app = create_app(
-    research_agent
+    research_agent,
+    api_key=api_key,
+    startup_validator=_validate_runtime_dependencies,
 )
 
 

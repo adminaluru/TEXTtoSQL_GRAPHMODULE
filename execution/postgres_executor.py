@@ -1,4 +1,4 @@
-from time import perf_counter
+﻿from time import perf_counter
 
 import psycopg
 from psycopg.rows import dict_row
@@ -74,6 +74,17 @@ class PostgreSQLExecutor:
         )
 
         self._max_rows = max_rows
+
+    def health_check(self) -> bool:
+        """Check whether PostgreSQL is reachable."""
+        try:
+            with psycopg.connect(self._dsn) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                    cursor.fetchone()
+            return True
+        except Exception:
+            return False
 
     # ======================================================
     # Public API
@@ -265,3 +276,4 @@ class PostgreSQLExecutor:
                                 ),
                         )
                     )
+
