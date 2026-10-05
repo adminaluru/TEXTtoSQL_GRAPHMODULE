@@ -1,6 +1,4 @@
 import logging
-import time
-import uuid
 
 from pydantic import BaseModel
 
@@ -12,6 +10,10 @@ from ai.interfaces.chat_model import (
 
 from nlu.models import (
     QuestionAnalysis,
+)
+
+from observability.perf import (
+    PerfTrace,
 )
 
 from ontology.concept_catalog import (
@@ -60,6 +62,15 @@ class QuestionAnalyzer:
     Timing instrumentation does NOT change business logic.
     """
 
+    PERF_STAGES = [
+        "catalog",
+        "prompt_build",
+        "request_build",
+        "llm_structured_call",
+        "result_coercion",
+        "concept_validation",
+    ]
+
     def __init__(
         self,
         chat_model: ChatModel,
@@ -79,6 +90,7 @@ class QuestionAnalyzer:
     def analyze(
         self,
         question: str,
+        repair_messages: list[ChatMessage] | None = None,
     ) -> QuestionAnalysis:
 
         question = (
@@ -91,24 +103,15 @@ class QuestionAnalyzer:
                 "Question cannot be empty."
             )
 
-        analyzer_id = (
-            uuid.uuid4().hex[:12]
-        )
-
-        total_started = (
-            time.perf_counter()
-        )
-
-        timings: dict[
-            str,
-            float,
-        ] = {}
-
-        status = "failed"
-
-        failed_stage = "startup"
-
-        try:
+        with PerfTrace(
+            event="FLOWONE_NLU_PERF",
+            id_field="analyzer_id",
+            stage_order=self.PERF_STAGES,
+            logger=logger,
+            fields={
+                "catalog_size": None,
+            },
+        ) as trace:
 
             # ==================================================
             # 1. Load current ontology vocabulary
@@ -116,151 +119,100 @@ class QuestionAnalyzer:
             # Neo4j-backed.
             # ==================================================
 
-            failed_stage = (
-                "catalog"
-            )
+            with trace.stage("catalog"):
 
-            started = (
-                time.perf_counter()
-            )
+                catalog = (
+                    self._load_catalog()
+                )
 
-            catalog = (
-                self._load_catalog()
-            )
-
-            timings[
-                "catalog"
-            ] = self._elapsed_ms(
-                started
+            trace.fields[
+                "catalog_size"
+            ] = len(
+                catalog
             )
 
             # ==================================================
             # 2. Build dynamic system prompt
             # ==================================================
 
-            failed_stage = (
-                "prompt_build"
-            )
+            with trace.stage("prompt_build"):
 
-            started = (
-                time.perf_counter()
-            )
-
-            system_prompt = (
-                self._build_system_prompt(
-                    catalog
+                system_prompt = (
+                    self._build_system_prompt(
+                        catalog
+                    )
                 )
-            )
-
-            timings[
-                "prompt_build"
-            ] = self._elapsed_ms(
-                started
-            )
 
             # ==================================================
             # 3. Build provider-neutral ChatRequest
             # ==================================================
 
-            failed_stage = (
-                "request_build"
-            )
+            with trace.stage("request_build"):
 
-            started = (
-                time.perf_counter()
-            )
+                messages = [
+                    ChatMessage(
+                        role="system",
+                        content=
+                            system_prompt,
+                    ),
+                    ChatMessage(
+                        role="user",
+                        content=
+                            question,
+                    ),
+                ]
 
-            request = (
-                ChatRequest(
-                    messages=[
-                        ChatMessage(
-                            role="system",
-                            content=
-                                system_prompt,
-                        ),
-                        ChatMessage(
-                            role="user",
-                            content=
-                                question,
-                        ),
-                    ],
-                    temperature=0.0,
+                # ----------------------------------------------
+                # Repair attempts append the previous structured
+                # answer and the deterministic rejection so the
+                # model can correct itself.
+                # ----------------------------------------------
+
+                messages.extend(
+                    repair_messages
+                    or []
                 )
-            )
 
-            timings[
-                "request_build"
-            ] = self._elapsed_ms(
-                started
-            )
+                request = (
+                    ChatRequest(
+                        messages=
+                            messages,
+
+                        temperature=0.0,
+                    )
+                )
 
             # ==================================================
             # 4. LLM -> structured QuestionAnalysis
             #
-            # IMPORTANT:
-            #
-            # This measurement currently includes everything
-            # inside ChatModel.generate_structured().
-            #
-            # For OpenAIChatModel that includes approximately:
-            #
-            # - network request
-            # - provider/model inference
-            # - structured-output processing in SDK
-            # - parsed object extraction
-            #
-            # If this dominates, we will instrument
-            # OpenAIChatModel next.
+            # Includes network request, provider inference and
+            # SDK structured-output processing.
             # ==================================================
 
-            failed_stage = (
-                "llm_structured_call"
-            )
+            with trace.stage("llm_structured_call"):
 
-            started = (
-                time.perf_counter()
-            )
+                raw_result = (
+                    self._chat_model
+                    .generate_structured(
+                        request=
+                            request,
 
-            raw_result = (
-                self._chat_model
-                .generate_structured(
-                    request=
-                        request,
-
-                    response_schema=
-                        QuestionAnalysis,
+                        response_schema=
+                            QuestionAnalysis,
+                    )
                 )
-            )
-
-            timings[
-                "llm_structured_call"
-            ] = self._elapsed_ms(
-                started
-            )
 
             # ==================================================
             # 5. Structured-result coercion
             # ==================================================
 
-            failed_stage = (
-                "result_coercion"
-            )
+            with trace.stage("result_coercion"):
 
-            started = (
-                time.perf_counter()
-            )
-
-            analysis = (
-                self._coerce_analysis(
-                    raw_result
+                analysis = (
+                    self._coerce_analysis(
+                        raw_result
+                    )
                 )
-            )
-
-            timings[
-                "result_coercion"
-            ] = self._elapsed_ms(
-                started
-            )
 
             # ==================================================
             # 6. Deterministically validate/canonicalize
@@ -269,133 +221,21 @@ class QuestionAnalyzer:
             # Prompt instructions alone are NOT trusted.
             # ==================================================
 
-            failed_stage = (
-                "concept_validation"
-            )
+            with trace.stage("concept_validation"):
 
-            started = (
-                time.perf_counter()
-            )
+                if catalog:
 
-            if catalog:
+                    analysis = (
+                        self._validate_and_canonicalize(
+                            analysis=
+                                analysis,
 
-                analysis = (
-                    self._validate_and_canonicalize(
-                        analysis=
-                            analysis,
-
-                        catalog=
-                            catalog,
+                            catalog=
+                                catalog,
+                        )
                     )
-                )
-
-            timings[
-                "concept_validation"
-            ] = self._elapsed_ms(
-                started
-            )
-
-            status = "success"
 
             return analysis
-
-        finally:
-
-            timings[
-                "total"
-            ] = self._elapsed_ms(
-                total_started
-            )
-
-            self._log_timings(
-                analyzer_id=
-                    analyzer_id,
-
-                status=
-                    status,
-
-                failed_stage=(
-                    None
-                    if status == "success"
-                    else failed_stage
-                ),
-
-                catalog_size=(
-                    len(catalog)
-                    if "catalog" in locals()
-                    else None
-                ),
-
-                timings=
-                    timings,
-            )
-
-    # ======================================================
-    # Timing helpers
-    # ======================================================
-
-    @staticmethod
-    def _elapsed_ms(
-        started: float,
-    ) -> float:
-
-        return round(
-            (
-                time.perf_counter()
-                - started
-            )
-            * 1000,
-            2,
-        )
-
-    @staticmethod
-    def _log_timings(
-        analyzer_id: str,
-        status: str,
-        failed_stage: str | None,
-        catalog_size: int | None,
-        timings: dict[str, float],
-    ) -> None:
-
-        ordered_stages = [
-            "catalog",
-            "prompt_build",
-            "request_build",
-            "llm_structured_call",
-            "result_coercion",
-            "concept_validation",
-            "total",
-        ]
-
-        timing_text = " ".join(
-            (
-                f"{stage}_ms="
-                f"{timings[stage]:.2f}"
-            )
-
-            for stage
-            in ordered_stages
-
-            if stage in timings
-        )
-
-        logger.info(
-            "FLOWONE_NLU_PERF "
-            "analyzer_id=%s "
-            "status=%s "
-            "failed_stage=%s "
-            "catalog_size=%s "
-            "%s",
-            analyzer_id,
-            status,
-            failed_stage or "-",
-            (
-                catalog_size
-                if catalog_size is not None
-                else "-"
-            ),
-            timing_text,
-        )
 
     # ======================================================
     # Ontology vocabulary

@@ -11,5 +11,6 @@ httpx
 pydantic
 neo4j
 psycopg[binary]
+psycopg-pool
 pytest
 openai

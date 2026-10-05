@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     api_key: Optional[SecretStr] = None
     rate_limit_requests_per_minute: int = 60
 
+    # Proxy IPs / CIDR ranges whose X-Forwarded-For headers
+    # are trusted for rate limiting. Empty = trust none.
+    # Example: TRUSTED_PROXIES='["10.0.0.0/8"]'
+    trusted_proxies: list[str] = []
+
     # ------------------------------------------------------
     # PostgreSQL
     # ------------------------------------------------------
@@ -36,6 +41,13 @@ class Settings(BaseSettings):
     postgres_user: str
     postgres_password: SecretStr
 
+    # Connection pool. Size max_size to at least the number
+    # of concurrent /ask workers; pool_timeout bounds how
+    # long a request waits for a free connection.
+    postgres_pool_min_size: int = 1
+    postgres_pool_max_size: int = 10
+    postgres_pool_timeout_seconds: float = 10.0
+
     # ------------------------------------------------------
     # Neo4j
     # ------------------------------------------------------
@@ -44,6 +56,11 @@ class Settings(BaseSettings):
     neo4j_user: str
     neo4j_password: SecretStr
     neo4j_database: str = "neo4j"
+
+    # Ontology lookups are cached for this long. Lower it
+    # while actively editing the ontology, or call
+    # POST /admin/ontology-cache/clear.
+    ontology_cache_ttl_seconds: float = 300.0
 
     # ------------------------------------------------------
     # LLM
@@ -54,6 +71,17 @@ class Settings(BaseSettings):
 
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
+
+    # Per-attempt request timeout and SDK-level retries.
+    # Worst case ~= timeout * (retries + 1) plus backoff.
+    llm_timeout_seconds: float = 30.0
+    llm_max_retries: int = 1
+
+    # Repair loop: extra LLM attempts after an interpretation
+    # failure, and the elapsed-time budget after which no new
+    # attempt starts. 0 attempts disables repair.
+    agent_repair_max_attempts: int = 2
+    agent_repair_budget_seconds: float = 30.0
 
     # ------------------------------------------------------
     # Pydantic Settings Configuration

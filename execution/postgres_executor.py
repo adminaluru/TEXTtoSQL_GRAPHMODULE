@@ -1,7 +1,10 @@
-﻿from time import perf_counter
+from collections.abc import Iterator
+from contextlib import contextmanager
+from time import perf_counter
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool, PoolTimeout
 
 from config import settings
 
@@ -34,6 +37,7 @@ class PostgreSQLExecutor:
     - enforce PostgreSQL statement timeout
     - bound returned result rows
     - return plain structured data
+    - reuse connections through an optional pool
 
     Does NOT:
 
@@ -51,6 +55,7 @@ class PostgreSQLExecutor:
         statement_timeout_ms: int = 5000,
         max_rows: int = 500,
         dsn: str | None = None,
+        pool: ConnectionPool | None = None,
     ) -> None:
 
         if statement_timeout_ms < 1:
@@ -75,16 +80,45 @@ class PostgreSQLExecutor:
 
         self._max_rows = max_rows
 
+        # When a pool is supplied, connections are reused.
+        # READ ONLY and statement_timeout are both
+        # transaction-scoped, so nothing leaks between
+        # pooled requests.
+        self._pool = pool
+
     def health_check(self) -> bool:
         """Check whether PostgreSQL is reachable."""
         try:
-            with psycopg.connect(self._dsn) as conn:
+            with self._connection() as conn:
                 with conn.cursor() as cursor:
                     cursor.execute("SELECT 1")
                     cursor.fetchone()
             return True
         except Exception:
             return False
+
+    @contextmanager
+    def _connection(self) -> Iterator[psycopg.Connection]:
+        """
+        Pooled connection when configured, otherwise a
+        short-lived connection.
+        """
+
+        if self._pool is None:
+
+            with psycopg.connect(self._dsn) as conn:
+                yield conn
+
+            return
+
+        try:
+            with self._pool.connection() as conn:
+                yield conn
+        except PoolTimeout as exc:
+            # Surfaces as 503 rather than 500 at the API.
+            raise TimeoutError(
+                "PostgreSQL connection pool exhausted."
+            ) from exc
 
     # ======================================================
     # Public API
@@ -132,16 +166,11 @@ class PostgreSQLExecutor:
             )
 
         # --------------------------------------------------
-        # 3. Execute using a short-lived connection.
-        #
-        # Current architecture intentionally does not
-        # introduce connection pooling yet.
+        # 3. Execute using a pooled or short-lived
+        #    connection.
         # --------------------------------------------------
 
-        with psycopg.connect(
-            self._dsn,
-            row_factory=dict_row,
-        ) as conn:
+        with self._connection() as conn:
 
             # ----------------------------------------------
             # Everything runs inside one transaction.
@@ -149,7 +178,9 @@ class PostgreSQLExecutor:
 
             with conn.transaction():
 
-                with conn.cursor() as cursor:
+                with conn.cursor(
+                    row_factory=dict_row,
+                ) as cursor:
 
                     # ======================================
                     # DATABASE-LEVEL SAFETY

@@ -1,6 +1,22 @@
 import logging
 import time
-import uuid
+
+from dataclasses import dataclass
+
+from agent.repair import (
+    REPAIR_WARNING,
+    UNSUPPORTED_MESSAGE,
+    RepairState,
+    UnsupportedQuestionError,
+    build_repair_messages,
+    clarification,
+    fanout_message,
+    unresolved_message,
+)
+
+from ai.interfaces.chat_model import (
+    ChatMessage,
+)
 
 from answering.answer_service import (
     AnswerService,
@@ -18,6 +34,11 @@ from nlu.models import (
     QuestionAnalysis,
 )
 
+from observability.perf import (
+    PerfTrace,
+    request_id_var,
+)
+
 from nlu.question_analyzer import (
     QuestionAnalyzer,
 )
@@ -26,12 +47,24 @@ from planning.column_resolver import (
     ColumnResolver,
 )
 
+from planning.fanout_guard import (
+    FanOutGuard,
+)
+
+from planning.graph_models import (
+    GraphPlan,
+)
+
 from planning.graph_planner import (
     GraphPlanner,
 )
 
 from planning.grain_resolver import (
     GrainResolver,
+)
+
+from planning.models import (
+    QueryPlan,
 )
 
 from planning.query_plan_builder import (
@@ -79,6 +112,17 @@ logger = logging.getLogger(
 )
 
 
+@dataclass
+class _Interpretation:
+    """Output of interpretation stages 1-7."""
+
+    planning_analysis: QuestionAnalysis
+
+    graph_plan: GraphPlan
+
+    query_plan: QueryPlan
+
+
 class ResearchAgentOrchestrator:
     """
     End-to-end coordinator for the Research Agent.
@@ -105,6 +149,8 @@ class ResearchAgentOrchestrator:
         ↓
     QueryPlanBuilder
         ↓
+    FanOutGuard
+        ↓
     deterministic SQL
         ↓
     validation
@@ -117,8 +163,19 @@ class ResearchAgentOrchestrator:
         ↓
     AnswerService
 
+    Repair loop:
+
+    When an interpretation stage (1-7) rejects the LLM's
+    analysis with a ValueError, the rejection is fed back
+    to the LLM and interpretation restarts from scratch,
+    up to max_repair_attempts retries within
+    repair_budget_seconds. When repair is exhausted, the
+    question is unsupported, or an aggregation would
+    double-count, a "clarification" AnswerResponse asks
+    the user to rephrase instead of failing.
+
     Performance instrumentation measures each major
-    stage independently.
+    stage independently through PerfTrace.
 
     IMPORTANT:
 
@@ -130,6 +187,23 @@ class ResearchAgentOrchestrator:
     - database execution
     """
 
+    PERF_STAGES = [
+        "question_analyzer",
+        "semantic_normalizer",
+        "semantic_adapter",
+        "graph_planner",
+        "grain_resolver",
+        "column_resolver",
+        "query_plan_builder",
+        "fanout_guard",
+        "sql_compiler",
+        "sql_validator",
+        "sql_guardrails",
+        "postgresql",
+        "result_analyzer",
+        "answer_service",
+    ]
+
     def __init__(
         self,
         question_analyzer: QuestionAnalyzer,
@@ -139,13 +213,30 @@ class ResearchAgentOrchestrator:
         grain_resolver: GrainResolver,
         column_resolver: ColumnResolver,
         query_plan_builder: QueryPlanBuilder,
+        fanout_guard: FanOutGuard,
         sql_compiler: DeterministicSQLCompiler,
         sql_validator: SQLValidator,
         sql_guardrails: SQLGuardrails,
         postgres_executor: PostgreSQLExecutor,
         result_analyzer: ResultAnalyzer,
         answer_service: AnswerService,
+        max_repair_attempts: int = 2,
+        repair_budget_seconds: float = 30.0,
     ) -> None:
+
+        if max_repair_attempts < 0:
+
+            raise ValueError(
+                "max_repair_attempts cannot be negative."
+            )
+
+        self._max_repair_attempts = (
+            max_repair_attempts
+        )
+
+        self._repair_budget_seconds = (
+            repair_budget_seconds
+        )
 
         self._question_analyzer = (
             question_analyzer
@@ -169,6 +260,10 @@ class ResearchAgentOrchestrator:
 
         self._query_plan_builder = (
             query_plan_builder
+        )
+
+        self._fanout_guard = (
+            fanout_guard
         )
 
         self._sql_compiler = (
@@ -216,72 +311,294 @@ class ResearchAgentOrchestrator:
 
         # ==================================================
         # Request-level performance context
+        #
+        # Stage timings accumulate across repair attempts.
         # ==================================================
 
-        request_id = (
-            uuid.uuid4().hex[:12]
-        )
-
-        total_started = (
-            time.perf_counter()
-        )
-
-        timings: dict[
-            str,
-            float,
-        ] = {}
-
-        status = "failed"
-
-        current_stage = "startup"
-
-        try:
+        with PerfTrace(
+            event="FLOWONE_PERF",
+            id_field="request_id",
+            stage_order=self.PERF_STAGES,
+            logger=logger,
+            trace_id=request_id_var.get(),
+            fields={
+                "attempts": 0,
+                "outcome": None,
+            },
+        ) as trace:
 
             # ==================================================
-            # 1. QuestionAnalyzer
-            #
-            # Includes:
-            # - prompt preparation
-            # - OpenAI/provider call
-            # - structured response parsing
-            # - QuestionAnalyzer-level ontology work
-            #
-            # We will instrument pure provider latency later
-            # if this stage is dominant.
+            # 1-7. Interpretation with bounded repair
             # ==================================================
 
-            current_stage = (
-                "question_analyzer"
+            interpretation = (
+                self._interpret_with_repair(
+                    question=
+                        question,
+
+                    trace=
+                        trace,
+                )
             )
 
-            started = (
-                time.perf_counter()
+            if isinstance(
+                interpretation,
+                AnswerResponse,
+            ):
+
+                return interpretation
+
+            # ==================================================
+            # 7B. FanOutGuard
+            #
+            # SUM / AVG / COUNT must not be inflated by a
+            # one-to-many join from the measure table. Never
+            # retried: dropping the offending concept would
+            # answer a different question.
+            # ==================================================
+
+            with trace.stage("fanout_guard"):
+
+                fanout_violations = (
+                    self._fanout_guard
+                    .find(
+                        interpretation.query_plan
+                    )
+                )
+
+            if fanout_violations:
+
+                logger.info(
+                    "FLOWONE_FANOUT_BLOCK request_id=%s "
+                    "violations=%s",
+                    trace.id,
+                    [
+                        violation.message
+                        for violation
+                        in fanout_violations
+                    ],
+                )
+
+                trace.fields[
+                    "outcome"
+                ] = "clarification_fanout"
+
+                return clarification(
+                    fanout_message(
+                        violations=
+                            fanout_violations,
+
+                        graph_plan=
+                            interpretation.graph_plan,
+                    )
+                )
+
+            # ==================================================
+            # 8-13. Deterministic SQL, execution and answer
+            # ==================================================
+
+            answer = (
+                self._execute(
+                    interpretation=
+                        interpretation,
+
+                    trace=
+                        trace,
+                )
             )
+
+            if trace.fields["attempts"] > 1:
+
+                answer.warnings.append(
+                    REPAIR_WARNING
+                )
+
+                trace.fields[
+                    "outcome"
+                ] = "answered_after_repair"
+
+            else:
+
+                trace.fields[
+                    "outcome"
+                ] = "answered"
+
+            return answer
+
+    # ======================================================
+    # Interpretation + repair loop
+    # ======================================================
+
+    def _interpret_with_repair(
+        self,
+        question: str,
+        trace: PerfTrace,
+    ) -> "_Interpretation | AnswerResponse":
+        """
+        Run interpretation stages, retrying with LLM
+        feedback when a stage rejects the interpretation.
+
+        Bounded by max_repair_attempts retries and by
+        repair_budget_seconds of total elapsed time (checked
+        before each retry).
+
+        Infrastructure errors (RuntimeError, ConnectionError,
+        TimeoutError) and PermissionError propagate
+        unchanged.
+        """
+
+        started = time.perf_counter()
+
+        state = RepairState()
+
+        repair_messages: list[ChatMessage] = []
+
+        while True:
+
+            trace.fields[
+                "attempts"
+            ] += 1
+
+            state.raw_analysis = None
+            state.graph_plan = None
+
+            try:
+
+                return self._interpret(
+                    question=
+                        question,
+
+                    repair_messages=
+                        repair_messages,
+
+                    state=
+                        state,
+
+                    trace=
+                        trace,
+                )
+
+            except UnsupportedQuestionError as exc:
+
+                logger.info(
+                    "FLOWONE_UNSUPPORTED request_id=%s "
+                    "stage=%s reason=%s",
+                    trace.id,
+                    trace.current_stage,
+                    exc,
+                )
+
+                trace.fields[
+                    "outcome"
+                ] = "clarification_unsupported"
+
+                return clarification(
+                    UNSUPPORTED_MESSAGE
+                )
+
+            except ValueError as exc:
+
+                reason = (
+                    f"{trace.current_stage}: {exc}"
+                )
+
+                state.failures.append(
+                    reason
+                )
+
+                retries_used = (
+                    trace.fields["attempts"] - 1
+                )
+
+                out_of_budget = (
+                    time.perf_counter() - started
+                    > self._repair_budget_seconds
+                )
+
+                can_retry = (
+                    retries_used
+                    < self._max_repair_attempts
+                    and not out_of_budget
+                )
+
+                logger.info(
+                    "FLOWONE_REPAIR request_id=%s attempt=%s "
+                    "stage=%s error_type=%s retry=%s reason=%s",
+                    trace.id,
+                    trace.fields["attempts"],
+                    trace.current_stage,
+                    type(exc).__name__,
+                    can_retry,
+                    exc,
+                )
+
+                if not can_retry:
+
+                    trace.fields[
+                        "outcome"
+                    ] = (
+                        "clarification_budget"
+                        if out_of_budget
+                        else "clarification_unresolved"
+                    )
+
+                    return clarification(
+                        unresolved_message(
+                            state
+                        )
+                    )
+
+                repair_messages = (
+                    build_repair_messages(
+                        state=
+                            state,
+
+                        reason=
+                            reason,
+                    )
+                )
+
+    def _interpret(
+        self,
+        question: str,
+        repair_messages: list[ChatMessage],
+        state: RepairState,
+        trace: PerfTrace,
+    ) -> "_Interpretation":
+        """
+        Stages 1-7: natural language -> physical QueryPlan.
+
+        Every attempt re-runs the full deterministic
+        validation; nothing from a rejected attempt is
+        trusted.
+        """
+
+        # ==================================================
+        # 1. QuestionAnalyzer
+        #
+        # Includes prompt preparation, the provider call,
+        # structured response parsing and ontology
+        # canonicalization.
+        # ==================================================
+
+        with trace.stage("question_analyzer"):
 
             raw_analysis = (
                 self._question_analyzer
                 .analyze(
-                    question
+                    question,
+                    repair_messages=
+                        repair_messages,
                 )
             )
 
-            timings[
-                "question_analyzer"
-            ] = self._elapsed_ms(
-                started
-            )
+        state.raw_analysis = raw_analysis
 
-            # ==================================================
-            # 2. SemanticQueryNormalizer
-            # ==================================================
+        # ==================================================
+        # 2. SemanticQueryNormalizer
+        # ==================================================
 
-            current_stage = (
-                "semantic_normalizer"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("semantic_normalizer"):
 
             normalization = (
                 self._semantic_query_normalizer
@@ -290,53 +607,51 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "semantic_normalizer"
-            ] = self._elapsed_ms(
-                started
+        if (
+            normalization.status
+            != "ready"
+        ):
+
+            detail = (
+                "Semantic normalization failed. "
+                f"Status: "
+                f"{normalization.status}. "
+                f"Reason: "
+                f"{normalization.reason_code}. "
+                f"Message: "
+                f"{normalization.message}"
             )
 
-            if (
-                normalization.status
-                != "ready"
-            ):
+            # "invalid" means the LLM output is internally
+            # inconsistent and may be repaired. Unsupported
+            # and clarification outcomes are capability
+            # limits.
+            if normalization.status == "invalid":
 
                 raise ValueError(
-                    "Semantic normalization failed. "
-                    f"Status: "
-                    f"{normalization.status}. "
-                    f"Reason: "
-                    f"{normalization.reason_code}. "
-                    f"Message: "
-                    f"{normalization.message}"
+                    detail
                 )
 
-            semantic_query = (
-                normalization.query
+            raise UnsupportedQuestionError(
+                detail
             )
 
-            if semantic_query is None:
+        semantic_query = (
+            normalization.query
+        )
 
-                raise ValueError(
-                    "Semantic normalization returned "
-                    "ready status without a query."
-                )
+        if semantic_query is None:
 
-            # ==================================================
-            # 3. Compatibility adapter
-            #
-            # Normally extremely cheap, but we measure it
-            # separately so hidden Python transformation
-            # overhead is visible.
-            # ==================================================
-
-            current_stage = (
-                "semantic_adapter"
+            raise ValueError(
+                "Semantic normalization returned "
+                "ready status without a query."
             )
 
-            started = (
-                time.perf_counter()
-            )
+        # ==================================================
+        # 3. Compatibility adapter
+        # ==================================================
+
+        with trace.stage("semantic_adapter"):
 
             planning_analysis = (
                 self._to_planning_analysis(
@@ -344,23 +659,11 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "semantic_adapter"
-            ] = self._elapsed_ms(
-                started
-            )
+        # ==================================================
+        # 4. GraphPlanner
+        # ==================================================
 
-            # ==================================================
-            # 4. GraphPlanner
-            # ==================================================
-
-            current_stage = (
-                "graph_planner"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("graph_planner"):
 
             graph_plan = (
                 self._graph_planner
@@ -373,23 +676,13 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "graph_planner"
-            ] = self._elapsed_ms(
-                started
-            )
+        state.graph_plan = graph_plan
 
-            # ==================================================
-            # 5. GrainResolver
-            # ==================================================
+        # ==================================================
+        # 5. GrainResolver
+        # ==================================================
 
-            current_stage = (
-                "grain_resolver"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("grain_resolver"):
 
             grain = (
                 self._grain_resolver
@@ -402,25 +695,13 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "grain_resolver"
-            ] = self._elapsed_ms(
-                started
-            )
+        # ==================================================
+        # 6. ColumnResolver
+        #
+        # Neo4j-backed column metadata resolution.
+        # ==================================================
 
-            # ==================================================
-            # 6. ColumnResolver
-            #
-            # Neo4j-backed column metadata resolution.
-            # ==================================================
-
-            current_stage = (
-                "column_resolver"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("column_resolver"):
 
             columns = (
                 self._column_resolver
@@ -433,26 +714,14 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "column_resolver"
-            ] = self._elapsed_ms(
-                started
-            )
+        # ==================================================
+        # 7. QueryPlanBuilder
+        #
+        # For COUNT(entity), this may also consult Neo4j
+        # entity identity / PK metadata.
+        # ==================================================
 
-            # ==================================================
-            # 7. QueryPlanBuilder
-            #
-            # For COUNT(entity), this may also consult Neo4j
-            # entity identity / PK metadata.
-            # ==================================================
-
-            current_stage = (
-                "query_plan_builder"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("query_plan_builder"):
 
             query_plan = (
                 self._query_plan_builder
@@ -474,23 +743,41 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "query_plan_builder"
-            ] = self._elapsed_ms(
-                started
-            )
+        return _Interpretation(
+            planning_analysis=
+                planning_analysis,
 
-            # ==================================================
-            # 8. SQLCompiler
-            # ==================================================
+            graph_plan=
+                graph_plan,
 
-            current_stage = (
-                "sql_compiler"
-            )
+            query_plan=
+                query_plan,
+        )
 
-            started = (
-                time.perf_counter()
-            )
+    # ======================================================
+    # Deterministic execution
+    # ======================================================
+
+    def _execute(
+        self,
+        interpretation: "_Interpretation",
+        trace: PerfTrace,
+    ) -> AnswerResponse:
+        """
+        Stages 8-13. Failures here are deterministic
+        (compiler, validator, guardrails, database) and are
+        never retried through the LLM.
+        """
+
+        query_plan = (
+            interpretation.query_plan
+        )
+
+        # ==================================================
+        # 8. SQLCompiler
+        # ==================================================
+
+        with trace.stage("sql_compiler"):
 
             compiled = (
                 self._sql_compiler
@@ -499,23 +786,11 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "sql_compiler"
-            ] = self._elapsed_ms(
-                started
-            )
+        # ==================================================
+        # 9. SQLValidator
+        # ==================================================
 
-            # ==================================================
-            # 9. SQLValidator
-            # ==================================================
-
-            current_stage = (
-                "sql_validator"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("sql_validator"):
 
             validation = (
                 self._sql_validator
@@ -528,31 +803,19 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "sql_validator"
-            ] = self._elapsed_ms(
-                started
+        if not validation.valid:
+
+            raise ValueError(
+                "Generated SQL failed validation. "
+                f"Errors: "
+                f"{validation.errors}"
             )
 
-            if not validation.valid:
+        # ==================================================
+        # 10. SQLGuardrails
+        # ==================================================
 
-                raise ValueError(
-                    "Generated SQL failed validation. "
-                    f"Errors: "
-                    f"{validation.errors}"
-                )
-
-            # ==================================================
-            # 10. SQLGuardrails
-            # ==================================================
-
-            current_stage = (
-                "sql_guardrails"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("sql_guardrails"):
 
             guardrails = (
                 self._sql_guardrails
@@ -568,32 +831,20 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "sql_guardrails"
-            ] = self._elapsed_ms(
-                started
+        if not guardrails.allowed:
+
+            raise PermissionError(
+                "Query execution blocked by "
+                "SQL guardrails. "
+                f"Violations: "
+                f"{guardrails.violations}"
             )
 
-            if not guardrails.allowed:
+        # ==================================================
+        # 11. PostgreSQL execution
+        # ==================================================
 
-                raise PermissionError(
-                    "Query execution blocked by "
-                    "SQL guardrails. "
-                    f"Violations: "
-                    f"{guardrails.violations}"
-                )
-
-            # ==================================================
-            # 11. PostgreSQL execution
-            # ==================================================
-
-            current_stage = (
-                "postgresql"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("postgresql"):
 
             execution = (
                 self._postgres_executor
@@ -609,23 +860,11 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "postgresql"
-            ] = self._elapsed_ms(
-                started
-            )
+        # ==================================================
+        # 12. ResultAnalyzer
+        # ==================================================
 
-            # ==================================================
-            # 12. ResultAnalyzer
-            # ==================================================
-
-            current_stage = (
-                "result_analyzer"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("result_analyzer"):
 
             result = (
                 self._result_analyzer
@@ -638,150 +877,24 @@ class ResearchAgentOrchestrator:
                 )
             )
 
-            timings[
-                "result_analyzer"
-            ] = self._elapsed_ms(
-                started
-            )
+        # ==================================================
+        # 13. AnswerService
+        # ==================================================
 
-            # ==================================================
-            # 13. AnswerService
-            # ==================================================
-
-            current_stage = (
-                "answer_service"
-            )
-
-            started = (
-                time.perf_counter()
-            )
+        with trace.stage("answer_service"):
 
             answer = (
                 self._answer_service
                 .build(
                     analysis=
-                        planning_analysis,
+                        interpretation.planning_analysis,
 
                     result=
                         result,
                 )
             )
 
-            timings[
-                "answer_service"
-            ] = self._elapsed_ms(
-                started
-            )
-
-            status = "success"
-
-            return answer
-
-        finally:
-
-            # ==================================================
-            # Request total
-            #
-            # This executes on both:
-            # - success
-            # - exception
-            #
-            # so slow failures can also be diagnosed.
-            # ==================================================
-
-            timings[
-                "total"
-            ] = self._elapsed_ms(
-                total_started
-            )
-
-            self._log_timings(
-                request_id=
-                    request_id,
-
-                status=
-                    status,
-
-                failed_stage=(
-                    None
-                    if status == "success"
-                    else current_stage
-                ),
-
-                timings=
-                    timings,
-            )
-
-    # ======================================================
-    # Timing helper
-    # ======================================================
-
-    @staticmethod
-    def _elapsed_ms(
-        started: float,
-    ) -> float:
-
-        return round(
-            (
-                time.perf_counter()
-                - started
-            )
-            * 1000,
-            2,
-        )
-
-    # ======================================================
-    # Structured performance logging
-    # ======================================================
-
-    @staticmethod
-    def _log_timings(
-        request_id: str,
-        status: str,
-        failed_stage: str | None,
-        timings: dict[str, float],
-    ) -> None:
-
-        ordered_stages = [
-            "question_analyzer",
-            "semantic_normalizer",
-            "semantic_adapter",
-            "graph_planner",
-            "grain_resolver",
-            "column_resolver",
-            "query_plan_builder",
-            "sql_compiler",
-            "sql_validator",
-            "sql_guardrails",
-            "postgresql",
-            "result_analyzer",
-            "answer_service",
-            "total",
-        ]
-
-        timing_text = " ".join(
-            (
-                f"{stage}_ms="
-                f"{timings[stage]:.2f}"
-            )
-
-            for stage
-            in ordered_stages
-
-            if stage in timings
-        )
-
-        logger.info(
-            "FLOWONE_PERF "
-            "request_id=%s "
-            "status=%s "
-            "failed_stage=%s "
-            "%s",
-            request_id,
-            status,
-            failed_stage or "-",
-            timing_text,
-        )
+        return answer
 
     # ======================================================
     # SemanticQuery -> existing planning contract
@@ -807,7 +920,7 @@ class ResearchAgentOrchestrator:
             > 1
         ):
 
-            raise ValueError(
+            raise UnsupportedQuestionError(
                 "Current planning pipeline supports "
                 "at most one semantic aggregation."
             )
@@ -883,7 +996,7 @@ class ResearchAgentOrchestrator:
                 != "entity"
             ):
 
-                raise ValueError(
+                raise UnsupportedQuestionError(
                     "Current planning compatibility "
                     "adapter supports entity grouping "
                     "only."
@@ -894,7 +1007,7 @@ class ResearchAgentOrchestrator:
                 is not None
             ):
 
-                raise ValueError(
+                raise UnsupportedQuestionError(
                     "Entity grouping cannot contain "
                     "an attribute in the current "
                     "planning compatibility contract."

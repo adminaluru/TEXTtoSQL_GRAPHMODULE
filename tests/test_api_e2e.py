@@ -562,3 +562,191 @@ def test_api_e2e_health():
     finally:
 
         neo4j.close()
+
+# ==========================================================
+# Cached ontology + pooled PostgreSQL
+#
+# Same GQ001 question, run through the production wiring:
+# a TTLCache-backed ontology and a psycopg connection pool.
+# Repeated requests must return the identical verified
+# answer while the second request skips Neo4j lookups.
+# ==========================================================
+
+def test_api_e2e_cached_ontology_and_pooled_postgres():
+
+    import time
+
+    from psycopg_pool import ConnectionPool
+
+    from config import settings
+    from ontology.cache import TTLCache
+
+    structured_response = {
+        "intent": "aggregate",
+        "concepts": ["Customer", "PaymentReceipt"],
+        "result_concept": "Customer",
+        "measure_concept": "PaymentReceipt",
+        "measure_attribute": "payment amount",
+        "group_by_concepts": [],
+        "entities": [
+            {
+                "concept": "Customer",
+                "attribute": "customer name",
+                "value": "Blue Prism",
+            }
+        ],
+        "aggregation": "SUM",
+    }
+
+    neo4j = Neo4jClient()
+
+    lookups = []
+
+    original_read = neo4j.execute_read
+
+    def counting_read(query, parameters=None):
+        lookups.append(1)
+        return original_read(query, parameters)
+
+    neo4j.execute_read = counting_read
+
+    pool = ConnectionPool(
+        settings.postgres_dsn,
+        min_size=1,
+        max_size=2,
+        open=True,
+    )
+
+    try:
+
+        agent = build_research_agent(
+            chat_model=MockChatModel(
+                structured_response=structured_response
+            ),
+            neo4j_client=neo4j,
+            postgres_executor=PostgreSQLExecutor(
+                statement_timeout_ms=5000,
+                max_rows=100,
+                pool=pool,
+            ),
+            ontology_cache=TTLCache(ttl_seconds=300),
+        )
+
+        with TestClient(create_app(agent)) as client:
+
+            values = []
+            durations = []
+            lookup_counts = []
+
+            for _ in range(3):
+
+                before = len(lookups)
+                started = time.perf_counter()
+
+                response = client.post(
+                    "/ask",
+                    json={"question": "How much has Blue Prism paid?"},
+                )
+
+                durations.append(time.perf_counter() - started)
+                lookup_counts.append(len(lookups) - before)
+
+                assert response.status_code == 200
+                values.append(
+                    Decimal(str(response.json()["data"]["value"]))
+                )
+
+        assert values == [Decimal("24000.00")] * 3
+
+        # First request populates the cache; later requests
+        # make no Neo4j round trips at all.
+        assert lookup_counts[0] > 0
+        assert lookup_counts[1:] == [0, 0]
+
+        # Read-only/timeout settings must not leak into
+        # pooled connections.
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT current_setting('transaction_read_only'), "
+                "current_setting('statement_timeout')"
+            ).fetchone()
+
+        assert row[0] == "off"
+        assert row[1] != "5s"
+
+        print(
+            "cached e2e durations (s):",
+            [round(value, 3) for value in durations],
+            "neo4j lookups:",
+            lookup_counts,
+        )
+
+    finally:
+
+        pool.close()
+        neo4j.close()
+
+
+# ==========================================================
+# Fan-out protection
+#
+# SUM(invoice.amount) joined to invoice line items repeats
+# every invoice once per item. Verified on Golden Data:
+#
+#   naive joined SUM = 297000.00
+#   correct total    =  99000.00
+#
+# The query must be refused (clarification) rather than
+# answered wrongly.
+# ==========================================================
+
+def test_api_e2e_blocks_sum_inflated_by_line_items():
+
+    agent, neo4j = build_e2e_agent(
+        {
+            "intent": "aggregate",
+            "concepts": ["Customer", "Invoice", "InvoiceItem"],
+            "result_concept": "Customer",
+            "measure_concept": "Invoice",
+            "measure_attribute": "invoice amount",
+            "group_by_concepts": [],
+            "entities": [
+                {
+                    "concept": "Customer",
+                    "attribute": "customer name",
+                    "value": "Blue Prism",
+                }
+            ],
+            "aggregation": "SUM",
+        }
+    )
+
+    try:
+
+        with TestClient(create_app(agent)) as client:
+
+            response = client.post(
+                "/ask",
+                json={
+                    "question":
+                        "What is the total invoice amount for "
+                        "Blue Prism invoice line items?"
+                },
+            )
+
+        # The user gets a clarifying question in business
+        # terms, never the inflated total or table names.
+        assert response.status_code == 200
+
+        body = response.json()
+
+        assert body["result_type"] == "clarification"
+        assert body["data"] is None
+        assert "297000" not in response.text
+        assert "erp_" not in body["answer"]
+        assert "Invoice" in body["answer"]
+        assert "InvoiceItem" in body["answer"]
+
+    finally:
+
+        neo4j.close()

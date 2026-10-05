@@ -22,6 +22,12 @@ from nlu.question_analyzer import (
     QuestionAnalyzer,
 )
 
+from ontology.cache import (
+    CachedConceptCatalogService,
+    CachedOntologyService,
+    TTLCache,
+)
+
 from ontology.concept_catalog import (
     ConceptCatalogService,
 )
@@ -32,6 +38,10 @@ from ontology.ontology_service import (
 
 from planning.column_resolver import (
     ColumnResolver,
+)
+
+from planning.fanout_guard import (
+    FanOutGuard,
 )
 
 from planning.graph_planner import (
@@ -71,6 +81,9 @@ def build_research_agent(
     chat_model: ChatModel,
     neo4j_client: Neo4jClient,
     postgres_executor: PostgreSQLExecutor | None = None,
+    ontology_cache: TTLCache | None = None,
+    max_repair_attempts: int = 2,
+    repair_budget_seconds: float = 30.0,
 ) -> ResearchAgentOrchestrator:
     """
     Build the complete Research Agent dependency graph.
@@ -112,23 +125,40 @@ def build_research_agent(
         future AnthropicChatModel
 
     No provider-specific SDK is referenced here.
+
+    When ontology_cache is supplied, every read-only
+    ontology lookup is shared through it. Without it each
+    request queries Neo4j directly.
+
+    max_repair_attempts / repair_budget_seconds bound the
+    orchestrator's LLM repair loop.
     """
 
     # ======================================================
     # 1. Shared Neo4j-backed ontology infrastructure
     # ======================================================
 
-    ontology = (
-        OntologyService(
-            neo4j_client
-        )
-    )
+    if ontology_cache is not None:
 
-    concept_catalog = (
-        ConceptCatalogService(
+        ontology = CachedOntologyService(
+            neo4j_client,
+            ontology_cache,
+        )
+
+        concept_catalog = CachedConceptCatalogService(
+            neo4j_client,
+            ontology_cache,
+        )
+
+    else:
+
+        ontology = OntologyService(
             neo4j_client
         )
-    )
+
+        concept_catalog = ConceptCatalogService(
+            neo4j_client
+        )
 
     # ======================================================
     # 2. LLM-dependent NLU
@@ -243,6 +273,19 @@ def build_research_agent(
     )
 
     # ======================================================
+    # 7B. Aggregation fan-out protection
+    #
+    # Uses Neo4j primary-key metadata to block SUM / AVG /
+    # COUNT over one-to-many joins.
+    # ======================================================
+
+    fanout_guard = (
+        FanOutGuard(
+            ontology
+        )
+    )
+
+    # ======================================================
     # 8. Deterministic SQL compilation
     # ======================================================
 
@@ -317,6 +360,9 @@ def build_research_agent(
         query_plan_builder=
             query_plan_builder,
 
+        fanout_guard=
+            fanout_guard,
+
         sql_compiler=
             sql_compiler,
 
@@ -334,4 +380,10 @@ def build_research_agent(
 
         answer_service=
             answer_service,
+
+        max_repair_attempts=
+            max_repair_attempts,
+
+        repair_budget_seconds=
+            repair_budget_seconds,
     )

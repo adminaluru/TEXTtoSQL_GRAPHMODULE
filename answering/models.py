@@ -21,10 +21,13 @@ class AnswerResponse(BaseModel):
 
     answer: str
 
+    # "clarification": the agent could not answer safely
+    # and `answer` asks the user to rephrase.
     result_type: Literal[
         "empty",
         "scalar",
         "tabular",
+        "clarification",
     ]
 
     row_count: int

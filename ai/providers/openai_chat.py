@@ -1,7 +1,5 @@
 import logging
 import os
-import time
-import uuid
 
 from typing import Any
 
@@ -13,6 +11,10 @@ from ai.interfaces.chat_model import (
     ChatModel,
     ChatRequest,
     ChatResponse,
+)
+
+from observability.perf import (
+    PerfTrace,
 )
 
 
@@ -64,6 +66,8 @@ class OpenAIChatModel(ChatModel):
         self,
         model_name: str | None = None,
         client: OpenAI | None = None,
+        timeout_seconds: float = 30.0,
+        max_retries: int = 1,
     ) -> None:
 
         self._provider = "openai"
@@ -81,9 +85,16 @@ class OpenAIChatModel(ChatModel):
         #
         # We deliberately do NOT instantiate OpenAI()
         # separately for every generate_*() call.
+        #
+        # An explicit timeout bounds how long a slow
+        # provider can hold a worker thread; the SDK
+        # default is several minutes.
         self._client = (
             client
-            or OpenAI()
+            or OpenAI(
+                timeout=timeout_seconds,
+                max_retries=max_retries,
+            )
         )
 
     # ======================================================
@@ -102,49 +113,23 @@ class OpenAIChatModel(ChatModel):
                 "at least one message."
             )
 
-        call_id = (
-            uuid.uuid4().hex[:12]
-        )
-
-        total_started = (
-            time.perf_counter()
-        )
-
-        timings: dict[
-            str,
-            float,
-        ] = {}
-
-        status = "failed"
-        failed_stage = "startup"
-
-        response = None
-
-        try:
+        with self._trace(
+            operation="text",
+            request=request,
+            schema_name=None,
+        ) as trace:
 
             # ==================================================
             # 1. Internal request -> provider input
             # ==================================================
 
-            failed_stage = (
-                "input_build"
-            )
+            with trace.stage("input_build"):
 
-            started = (
-                time.perf_counter()
-            )
-
-            provider_input = (
-                self._build_input(
-                    request
+                provider_input = (
+                    self._build_input(
+                        request
+                    )
                 )
-            )
-
-            timings[
-                "input_build"
-            ] = self._elapsed_ms(
-                started
-            )
 
             kwargs: dict[
                 str,
@@ -169,69 +154,44 @@ class OpenAIChatModel(ChatModel):
             # ==================================================
             # 2. OpenAI Responses API
             #
-            # This timer includes:
-            #
-            # - SDK request handling
-            # - network round trip
-            # - provider processing/inference
-            # - response deserialization
-            #
-            # It does NOT let us distinguish those pieces
-            # individually.
+            # Includes SDK request handling, network round
+            # trip, provider inference and deserialization.
             # ==================================================
 
-            failed_stage = (
-                "api_call"
-            )
+            with trace.stage("api_call"):
 
-            started = (
-                time.perf_counter()
-            )
+                try:
 
-            try:
-
-                response = (
-                    self._client
-                    .responses
-                    .create(
-                        **kwargs
+                    response = (
+                        self._client
+                        .responses
+                        .create(
+                            **kwargs
+                        )
                     )
+
+                except Exception as exc:
+
+                    raise RuntimeError(
+                        "OpenAI text generation failed."
+                    ) from exc
+
+            trace.fields.update(
+                self._usage_fields(
+                    response
                 )
-
-            except Exception as exc:
-
-                raise RuntimeError(
-                    "OpenAI text generation failed."
-                ) from exc
-
-            timings[
-                "api_call"
-            ] = self._elapsed_ms(
-                started
             )
 
             # ==================================================
             # 3. Response extraction
             # ==================================================
 
-            failed_stage = (
-                "response_extract"
-            )
+            with trace.stage("response_extract"):
 
-            started = (
-                time.perf_counter()
-            )
-
-            content = (
-                response.output_text
-                or ""
-            )
-
-            timings[
-                "response_extract"
-            ] = self._elapsed_ms(
-                started
-            )
+                content = (
+                    response.output_text
+                    or ""
+                )
 
             if not content:
 
@@ -244,85 +204,34 @@ class OpenAIChatModel(ChatModel):
             # 4. Internal ChatResponse construction
             # ==================================================
 
-            failed_stage = (
-                "response_build"
-            )
+            with trace.stage("response_build"):
 
-            started = (
-                time.perf_counter()
-            )
+                result = ChatResponse(
+                    content=
+                        content,
 
-            result = ChatResponse(
-                content=
-                    content,
+                    provider=
+                        self._provider,
 
-                provider=
-                    self._provider,
+                    model=
+                        self._model_name,
 
-                model=
-                    self._model_name,
-
-                usage=
-                    self._extract_usage(
-                        response
-                    ),
-
-                metadata={
-                    "response_id":
-                        getattr(
-                            response,
-                            "id",
-                            None,
+                    usage=
+                        self._extract_usage(
+                            response
                         ),
-                },
-            )
 
-            timings[
-                "response_build"
-            ] = self._elapsed_ms(
-                started
-            )
-
-            status = "success"
+                    metadata={
+                        "response_id":
+                            getattr(
+                                response,
+                                "id",
+                                None,
+                            ),
+                    },
+                )
 
             return result
-
-        finally:
-
-            timings[
-                "total"
-            ] = self._elapsed_ms(
-                total_started
-            )
-
-            self._log_performance(
-                call_id=
-                    call_id,
-
-                operation=
-                    "text",
-
-                status=
-                    status,
-
-                failed_stage=(
-                    None
-                    if status == "success"
-                    else failed_stage
-                ),
-
-                request=
-                    request,
-
-                response=
-                    response,
-
-                schema_name=
-                    None,
-
-                timings=
-                    timings,
-            )
 
     # ======================================================
     # Structured generation
@@ -348,49 +257,23 @@ class OpenAIChatModel(ChatModel):
                 "at least one message."
             )
 
-        call_id = (
-            uuid.uuid4().hex[:12]
-        )
-
-        total_started = (
-            time.perf_counter()
-        )
-
-        timings: dict[
-            str,
-            float,
-        ] = {}
-
-        status = "failed"
-        failed_stage = "startup"
-
-        response = None
-
-        try:
+        with self._trace(
+            operation="structured",
+            request=request,
+            schema_name=response_schema.__name__,
+        ) as trace:
 
             # ==================================================
             # 1. Internal ChatRequest -> OpenAI input
             # ==================================================
 
-            failed_stage = (
-                "input_build"
-            )
+            with trace.stage("input_build"):
 
-            started = (
-                time.perf_counter()
-            )
-
-            provider_input = (
-                self._build_input(
-                    request
+                provider_input = (
+                    self._build_input(
+                        request
+                    )
                 )
-            )
-
-            timings[
-                "input_build"
-            ] = self._elapsed_ms(
-                started
-            )
 
             kwargs: dict[
                 str,
@@ -418,70 +301,47 @@ class OpenAIChatModel(ChatModel):
             # ==================================================
             # 2. OpenAI structured API call
             #
-            # IMPORTANT:
-            #
             # responses.parse() includes both the remote
             # OpenAI operation and SDK structured-output
-            # handling.
-            #
-            # This is the stage we expect to explain most
-            # of the current 1.5–6.6 second latency.
+            # handling. This is the dominant latency stage.
             # ==================================================
 
-            failed_stage = (
-                "api_parse_call"
-            )
+            with trace.stage("api_parse_call"):
 
-            started = (
-                time.perf_counter()
-            )
+                try:
 
-            try:
-
-                response = (
-                    self._client
-                    .responses
-                    .parse(
-                        **kwargs
+                    response = (
+                        self._client
+                        .responses
+                        .parse(
+                            **kwargs
+                        )
                     )
+
+                except Exception as exc:
+
+                    raise RuntimeError(
+                        "OpenAI structured generation "
+                        "failed."
+                    ) from exc
+
+            trace.fields.update(
+                self._usage_fields(
+                    response
                 )
-
-            except Exception as exc:
-
-                raise RuntimeError(
-                    "OpenAI structured generation "
-                    "failed."
-                ) from exc
-
-            timings[
-                "api_parse_call"
-            ] = self._elapsed_ms(
-                started
             )
 
             # ==================================================
             # 3. Extract parsed SDK payload
             # ==================================================
 
-            failed_stage = (
-                "parsed_extract"
-            )
+            with trace.stage("parsed_extract"):
 
-            started = (
-                time.perf_counter()
-            )
-
-            parsed = (
-                self._extract_parsed_response(
-                    response
+                parsed = (
+                    self._extract_parsed_response(
+                        response
+                    )
                 )
-            )
-
-            timings[
-                "parsed_extract"
-            ] = self._elapsed_ms(
-                started
-            )
 
             if parsed is None:
 
@@ -493,95 +353,41 @@ class OpenAIChatModel(ChatModel):
             # ==================================================
             # 4. Pydantic coercion / validation
             #
-            # In the normal path responses.parse() may
-            # already return the target Pydantic model.
-            #
-            # We still retain defensive validation so no
-            # provider-specific object escapes this adapter.
+            # Defensive validation so no provider-specific
+            # object escapes this adapter.
             # ==================================================
 
-            failed_stage = (
-                "schema_validation"
-            )
+            with trace.stage("schema_validation"):
 
-            started = (
-                time.perf_counter()
-            )
+                if isinstance(
+                    parsed,
+                    response_schema,
+                ):
 
-            if isinstance(
-                parsed,
-                response_schema,
-            ):
+                    result = parsed
 
-                result = parsed
+                elif isinstance(
+                    parsed,
+                    BaseModel,
+                ):
 
-            elif isinstance(
-                parsed,
-                BaseModel,
-            ):
-
-                result = (
-                    response_schema
-                    .model_validate(
-                        parsed.model_dump()
+                    result = (
+                        response_schema
+                        .model_validate(
+                            parsed.model_dump()
+                        )
                     )
-                )
 
-            else:
+                else:
 
-                result = (
-                    response_schema
-                    .model_validate(
-                        parsed
+                    result = (
+                        response_schema
+                        .model_validate(
+                            parsed
+                        )
                     )
-                )
-
-            timings[
-                "schema_validation"
-            ] = self._elapsed_ms(
-                started
-            )
-
-            status = "success"
 
             return result
-
-        finally:
-
-            timings[
-                "total"
-            ] = self._elapsed_ms(
-                total_started
-            )
-
-            self._log_performance(
-                call_id=
-                    call_id,
-
-                operation=
-                    "structured",
-
-                status=
-                    status,
-
-                failed_stage=(
-                    None
-                    if status == "success"
-                    else failed_stage
-                ),
-
-                request=
-                    request,
-
-                response=
-                    response,
-
-                schema_name=
-                    response_schema.__name__,
-
-                timings=
-                    timings,
-            )
 
     # ======================================================
     # Health
@@ -805,24 +611,6 @@ class OpenAIChatModel(ChatModel):
         return result
 
     # ======================================================
-    # Timing
-    # ======================================================
-
-    @staticmethod
-    def _elapsed_ms(
-        started: float,
-    ) -> float:
-
-        return round(
-            (
-                time.perf_counter()
-                - started
-            )
-            * 1000,
-            2,
-        )
-
-    # ======================================================
     # Request-size metrics
     # ======================================================
 
@@ -894,20 +682,22 @@ class OpenAIChatModel(ChatModel):
     # Structured performance logging
     # ======================================================
 
-    def _log_performance(
+    PERF_STAGES = [
+        "input_build",
+        "api_call",
+        "api_parse_call",
+        "response_extract",
+        "parsed_extract",
+        "schema_validation",
+        "response_build",
+    ]
+
+    def _trace(
         self,
-        call_id: str,
         operation: str,
-        status: str,
-        failed_stage: str | None,
         request: ChatRequest,
-        response: Any | None,
         schema_name: str | None,
-        timings: dict[
-            str,
-            float,
-        ],
-    ) -> None:
+    ) -> PerfTrace:
 
         request_metrics = (
             self._request_metrics(
@@ -915,150 +705,51 @@ class OpenAIChatModel(ChatModel):
             )
         )
 
+        return PerfTrace(
+            event="FLOWONE_OPENAI_PERF",
+            id_field="call_id",
+            stage_order=self.PERF_STAGES,
+            logger=logger,
+            fields={
+                "operation": operation,
+                "model": self._model_name,
+                "schema": schema_name,
+                "messages": request_metrics["message_count"],
+                "input_chars": request_metrics["input_chars"],
+                "system_chars": request_metrics["system_chars"],
+                "user_chars": request_metrics["user_chars"],
+                "input_tokens": None,
+                "output_tokens": None,
+                "total_tokens": None,
+                "cached_input_tokens": None,
+                "reasoning_tokens": None,
+            },
+        )
+
+    @classmethod
+    def _usage_fields(
+        cls,
+        response: Any,
+    ) -> dict[
+        str,
+        Any,
+    ]:
+
         usage = (
-            self._extract_usage(
+            cls._extract_usage(
                 response
             )
-
-            if response
-            is not None
-
-            else None
+            or {}
         )
 
-        input_tokens = (
-            usage.get(
-                "input_tokens"
+        return {
+            name: usage.get(name)
+
+            for name in (
+                "input_tokens",
+                "output_tokens",
+                "total_tokens",
+                "cached_input_tokens",
+                "reasoning_tokens",
             )
-
-            if usage
-
-            else None
-        )
-
-        output_tokens = (
-            usage.get(
-                "output_tokens"
-            )
-
-            if usage
-
-            else None
-        )
-
-        total_tokens = (
-            usage.get(
-                "total_tokens"
-            )
-
-            if usage
-
-            else None
-        )
-
-        cached_input_tokens = (
-            usage.get(
-                "cached_input_tokens"
-            )
-
-            if usage
-
-            else None
-        )
-
-        reasoning_tokens = (
-            usage.get(
-                "reasoning_tokens"
-            )
-
-            if usage
-
-            else None
-        )
-
-        ordered_stages = [
-            "input_build",
-            "api_call",
-            "api_parse_call",
-            "response_extract",
-            "parsed_extract",
-            "schema_validation",
-            "response_build",
-            "total",
-        ]
-
-        timing_text = " ".join(
-            (
-                f"{stage}_ms="
-                f"{timings[stage]:.2f}"
-            )
-
-            for stage
-            in ordered_stages
-
-            if stage in timings
-        )
-
-        logger.info(
-            "FLOWONE_OPENAI_PERF "
-            "call_id=%s "
-            "operation=%s "
-            "status=%s "
-            "failed_stage=%s "
-            "model=%s "
-            "schema=%s "
-            "messages=%s "
-            "input_chars=%s "
-            "system_chars=%s "
-            "user_chars=%s "
-            "input_tokens=%s "
-            "output_tokens=%s "
-            "total_tokens=%s "
-            "cached_input_tokens=%s "
-            "reasoning_tokens=%s "
-            "%s",
-            call_id,
-            operation,
-            status,
-            failed_stage or "-",
-            self._model_name,
-            schema_name or "-",
-            request_metrics[
-                "message_count"
-            ],
-            request_metrics[
-                "input_chars"
-            ],
-            request_metrics[
-                "system_chars"
-            ],
-            request_metrics[
-                "user_chars"
-            ],
-            (
-                input_tokens
-                if input_tokens is not None
-                else "-"
-            ),
-            (
-                output_tokens
-                if output_tokens is not None
-                else "-"
-            ),
-            (
-                total_tokens
-                if total_tokens is not None
-                else "-"
-            ),
-            (
-                cached_input_tokens
-                if cached_input_tokens is not None
-                else "-"
-            ),
-            (
-                reasoning_tokens
-                if reasoning_tokens is not None
-                else "-"
-            ),
-            timing_text,
-        )
+        }

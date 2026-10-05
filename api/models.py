@@ -23,12 +23,15 @@ class AskRequest(BaseModel):
 class APIErrorResponse(BaseModel):
     """
     Stable API error contract.
+
+    detail is a generic, client-safe message.
+    request_id correlates the error with server logs.
     """
 
     model_config = ConfigDict(
         extra="forbid"
     )
 
-    error: str
+    detail: str
 
-    detail: str | None = None
+    request_id: str | None = None

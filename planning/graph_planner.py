@@ -1,9 +1,11 @@
 import logging
-import time
-import uuid
 
 from nlu.models import (
     QuestionAnalysis,
+)
+
+from observability.perf import (
+    PerfTrace,
 )
 
 from ontology.models import (
@@ -87,6 +89,17 @@ class GraphPlanner:
     - total GraphPlanner latency
     """
 
+    PERF_STAGES = [
+        "concept_normalization",
+        "table_resolution",
+        "semantic_relationship",
+        "physical_path_lookup",
+        "path_ranking",
+        "semantic_path_validation",
+        "existence_path_lookup",
+        "graph_plan_build",
+    ]
+
     def __init__(
         self,
         ontology_service: OntologyService,
@@ -112,65 +125,41 @@ class GraphPlanner:
         semantic_query: SemanticQuery | None = None,
     ) -> GraphPlan:
 
-        planner_id = (
-            uuid.uuid4().hex[:12]
-        )
+        with PerfTrace(
+            event="FLOWONE_GRAPH_PERF",
+            id_field="planner_id",
+            stage_order=self.PERF_STAGES,
+            logger=logger,
+            fields={
+                "concepts": 0,
+                "table_lookups": 0,
+                "semantic_lookups": 0,
+                "semantic_bridge_lookups": 0,
+                "semantic_path_candidates_checked": 0,
+                "physical_path_lookups": 0,
+                "candidate_paths": 0,
+                "ranking_calls": 0,
+                "existence_branches": 0,
+            },
+        ) as trace:
 
-        total_started = (
-            time.perf_counter()
-        )
-
-        timings: dict[
-            str,
-            float,
-        ] = {}
-
-        counters: dict[
-            str,
-            int,
-        ] = {
-            "concept_count": 0,
-            "table_lookups": 0,
-            "semantic_lookups": 0,
-            "semantic_bridge_lookups": 0,
-            "semantic_path_candidates_checked": 0,
-            "physical_path_lookups": 0,
-            "candidate_path_count": 0,
-            "ranking_calls": 0,
-            "existence_branch_count": 0,
-        }
-
-        status = "failed"
-        failed_stage = "startup"
-
-        try:
+            # Counters are logged with the trace line.
+            counters = trace.fields
 
             # ==================================================
             # 1. Normalize / deduplicate requested concepts
             # ==================================================
 
-            failed_stage = (
-                "concept_normalization"
-            )
+            with trace.stage("concept_normalization"):
 
-            started = (
-                time.perf_counter()
-            )
-
-            concepts = (
-                self._unique_preserve_order(
-                    analysis.concepts
+                concepts = (
+                    self._unique_preserve_order(
+                        analysis.concepts
+                    )
                 )
-            )
-
-            timings[
-                "concept_normalization"
-            ] = self._elapsed_ms(
-                started
-            )
 
             counters[
-                "concept_count"
+                "concepts"
             ] = len(
                 concepts
             )
@@ -181,29 +170,15 @@ class GraphPlanner:
 
             if not concepts:
 
-                failed_stage = (
-                    "graph_plan_build"
-                )
+                with trace.stage("graph_plan_build"):
 
-                started = (
-                    time.perf_counter()
-                )
-
-                result = GraphPlan(
-                    concepts=[],
-                    tables=[],
-                    semantic_relationships=[],
-                    physical_paths=[],
-                    existence_branches=[],
-                )
-
-                timings[
-                    "graph_plan_build"
-                ] = self._elapsed_ms(
-                    started
-                )
-
-                status = "success"
+                    result = GraphPlan(
+                        concepts=[],
+                        tables=[],
+                        semantic_relationships=[],
+                        physical_paths=[],
+                        existence_branches=[],
+                    )
 
                 return result
 
@@ -211,47 +186,35 @@ class GraphPlanner:
             # 2. Requested Concept -> Table resolution
             # ==================================================
 
-            failed_stage = (
-                "table_resolution"
-            )
-
-            started = (
-                time.perf_counter()
-            )
-
             resolved_tables: list[
                 TableMetadata
             ] = []
 
-            for concept in concepts:
+            with trace.stage("table_resolution"):
 
-                counters[
-                    "table_lookups"
-                ] += 1
+                for concept in concepts:
 
-                table = (
-                    self._ontology
-                    .resolve_table(
-                        concept
-                    )
-                )
+                    counters[
+                        "table_lookups"
+                    ] += 1
 
-                if table is None:
-
-                    raise ValueError(
-                        "Unable to resolve ontology "
-                        f"concept: {concept}"
+                    table = (
+                        self._ontology
+                        .resolve_table(
+                            concept
+                        )
                     )
 
-                resolved_tables.append(
-                    table
-                )
+                    if table is None:
 
-            timings[
-                "table_resolution"
-            ] = self._elapsed_ms(
-                started
-            )
+                        raise ValueError(
+                            "Unable to resolve ontology "
+                            f"concept: {concept}"
+                        )
+
+                    resolved_tables.append(
+                        table
+                    )
 
             concept_to_table = {
                 table.business_concept:
@@ -372,38 +335,24 @@ class GraphPlanner:
                 and not existence_conditions
             ):
 
-                failed_stage = (
-                    "graph_plan_build"
-                )
+                with trace.stage("graph_plan_build"):
 
-                started = (
-                    time.perf_counter()
-                )
+                    result = GraphPlan(
+                        concepts=
+                            concepts,
 
-                result = GraphPlan(
-                    concepts=
-                        concepts,
+                        tables=
+                            resolved_tables,
 
-                    tables=
-                        resolved_tables,
+                        semantic_relationships=
+                            [],
 
-                    semantic_relationships=
-                        [],
+                        physical_paths=
+                            [],
 
-                    physical_paths=
-                        [],
-
-                    existence_branches=
-                        [],
-                )
-
-                timings[
-                    "graph_plan_build"
-                ] = self._elapsed_ms(
-                    started
-                )
-
-                status = "success"
+                        existence_branches=
+                            [],
+                    )
 
                 return result
 
@@ -445,36 +394,7 @@ class GraphPlanner:
                 # Existing behavior is preserved.
                 # ==============================================
 
-                failed_stage = (
-                    "semantic_relationship"
-                )
-
-                started = (
-                    time.perf_counter()
-                )
-
-                counters[
-                    "semantic_lookups"
-                ] += 1
-
-                direct_semantic = (
-                    self._ontology
-                    .find_semantic_relationship(
-                        source_concept=
-                            source_concept,
-
-                        target_concept=
-                            target_concept,
-                    )
-                )
-
-                # ----------------------------------------------
-                # Semantic relationships are directional.
-                #
-                # Try reverse semantic direction when required.
-                # ----------------------------------------------
-
-                if direct_semantic is None:
+                with trace.stage("semantic_relationship"):
 
                     counters[
                         "semantic_lookups"
@@ -484,25 +404,36 @@ class GraphPlanner:
                         self._ontology
                         .find_semantic_relationship(
                             source_concept=
-                                target_concept,
+                                source_concept,
 
                             target_concept=
-                                source_concept,
+                                target_concept,
                         )
                     )
 
-                self._accumulate_timing(
-                    timings=
-                        timings,
+                    # ------------------------------------------
+                    # Semantic relationships are directional.
+                    #
+                    # Try reverse semantic direction when
+                    # required.
+                    # ------------------------------------------
 
-                    stage=
-                        "semantic_relationship",
+                    if direct_semantic is None:
 
-                    elapsed_ms=
-                        self._elapsed_ms(
-                            started
-                        ),
-                )
+                        counters[
+                            "semantic_lookups"
+                        ] += 1
+
+                        direct_semantic = (
+                            self._ontology
+                            .find_semantic_relationship(
+                                source_concept=
+                                    target_concept,
+
+                                target_concept=
+                                    source_concept,
+                            )
+                        )
 
                 # ==============================================
                 # 3B. Find physical candidate paths
@@ -512,44 +443,25 @@ class GraphPlanner:
                 # graph may contain a legitimate bridge path.
                 # ==============================================
 
-                failed_stage = (
-                    "physical_path_lookup"
-                )
+                with trace.stage("physical_path_lookup"):
 
-                started = (
-                    time.perf_counter()
-                )
+                    counters[
+                        "physical_path_lookups"
+                    ] += 1
 
-                counters[
-                    "physical_path_lookups"
-                ] += 1
+                    candidate_paths = (
+                        self._ontology
+                        .find_physical_paths(
+                            start_table_key=
+                                source_table.key,
 
-                candidate_paths = (
-                    self._ontology
-                    .find_physical_paths(
-                        start_table_key=
-                            source_table.key,
-
-                        end_table_key=
-                            target_table.key,
+                            end_table_key=
+                                target_table.key,
+                        )
                     )
-                )
-
-                self._accumulate_timing(
-                    timings=
-                        timings,
-
-                    stage=
-                        "physical_path_lookup",
-
-                    elapsed_ms=
-                        self._elapsed_ms(
-                            started
-                        ),
-                )
 
                 counters[
-                    "candidate_path_count"
+                    "candidate_paths"
                 ] += len(
                     candidate_paths
                 )
@@ -570,17 +482,15 @@ class GraphPlanner:
 
                 if direct_semantic is not None:
 
-                    failed_stage = (
-                        "path_ranking"
-                    )
+                    trace.mark("path_ranking")
 
                     physical_path = (
                         self._select_best_path(
                             candidate_paths=
                                 candidate_paths,
 
-                            timings=
-                                timings,
+                            trace=
+                                trace,
 
                             counters=
                                 counters,
@@ -617,9 +527,7 @@ class GraphPlanner:
                 # across EVERY adjacent table pair.
                 # ==============================================
 
-                failed_stage = (
-                    "semantic_path_validation"
-                )
+                trace.mark("semantic_path_validation")
 
                 (
                     physical_path,
@@ -630,8 +538,8 @@ class GraphPlanner:
                         candidate_paths=
                             candidate_paths,
 
-                        timings=
-                            timings,
+                        trace=
+                            trace,
 
                         counters=
                             counters,
@@ -686,9 +594,7 @@ class GraphPlanner:
                 # metadata; it is never hard-coded.
                 # ==============================================
 
-                failed_stage = (
-                    "bridge_table_resolution"
-                )
+                trace.mark("bridge_table_resolution")
 
                 self._add_bridge_tables(
                     resolved_tables=
@@ -713,9 +619,7 @@ class GraphPlanner:
 
             if existence_conditions:
 
-                failed_stage = (
-                    "existence_branch_planning"
-                )
+                trace.mark("existence_branch_planning")
 
                 anchor_concept = (
                     semantic_query
@@ -781,40 +685,28 @@ class GraphPlanner:
                             "anchor."
                         )
 
-                    started = (
-                        time.perf_counter()
-                    )
+                    with trace.stage(
+                        "existence_path_lookup",
+                        mark=False,
+                    ):
 
-                    counters[
-                        "physical_path_lookups"
-                    ] += 1
+                        counters[
+                            "physical_path_lookups"
+                        ] += 1
 
-                    candidate_paths = (
-                        self._ontology
-                        .find_physical_paths(
-                            start_table_key=
-                                anchor_table.key,
+                        candidate_paths = (
+                            self._ontology
+                            .find_physical_paths(
+                                start_table_key=
+                                    anchor_table.key,
 
-                            end_table_key=
-                                target_table.key,
+                                end_table_key=
+                                    target_table.key,
+                            )
                         )
-                    )
-
-                    self._accumulate_timing(
-                        timings=
-                            timings,
-
-                        stage=
-                            "existence_path_lookup",
-
-                        elapsed_ms=
-                            self._elapsed_ms(
-                                started
-                            ),
-                    )
 
                     counters[
-                        "candidate_path_count"
+                        "candidate_paths"
                     ] += len(
                         candidate_paths
                     )
@@ -837,8 +729,8 @@ class GraphPlanner:
                             candidate_paths=
                                 candidate_paths,
 
-                            timings=
-                                timings,
+                            trace=
+                                trace,
 
                             counters=
                                 counters,
@@ -928,7 +820,7 @@ class GraphPlanner:
                         )
 
                 counters[
-                    "existence_branch_count"
+                    "existence_branches"
                 ] = len(
                     existence_branches
                 )
@@ -937,82 +829,40 @@ class GraphPlanner:
             # 5. Construct GraphPlan
             # ==================================================
 
-            failed_stage = (
-                "graph_plan_build"
-            )
+            with trace.stage("graph_plan_build"):
 
-            started = (
-                time.perf_counter()
-            )
+                result = GraphPlan(
+                    # IMPORTANT:
+                    #
+                    # concepts represents the business concepts
+                    # requested by the semantic layer.
+                    #
+                    # Bridge concepts discovered by the planner
+                    # are represented through:
+                    #
+                    # - semantic_relationships
+                    # - tables
+                    # - physical_paths
+                    #
+                    # They are NOT injected back into the original
+                    # user semantic request.
+                    concepts=
+                        concepts,
 
-            result = GraphPlan(
-                # IMPORTANT:
-                #
-                # concepts represents the business concepts
-                # requested by the semantic layer.
-                #
-                # Bridge concepts discovered by the planner
-                # are represented through:
-                #
-                # - semantic_relationships
-                # - tables
-                # - physical_paths
-                #
-                # They are NOT injected back into the original
-                # user semantic request.
-                concepts=
-                    concepts,
+                    tables=
+                        resolved_tables,
 
-                tables=
-                    resolved_tables,
+                    semantic_relationships=
+                        semantic_relationships,
 
-                semantic_relationships=
-                    semantic_relationships,
+                    physical_paths=
+                        physical_paths,
 
-                physical_paths=
-                    physical_paths,
-
-                existence_branches=
-                    existence_branches,
-            )
-
-            timings[
-                "graph_plan_build"
-            ] = self._elapsed_ms(
-                started
-            )
-
-            status = "success"
+                    existence_branches=
+                        existence_branches,
+                )
 
             return result
-
-        finally:
-
-            timings[
-                "total"
-            ] = self._elapsed_ms(
-                total_started
-            )
-
-            self._log_timings(
-                planner_id=
-                    planner_id,
-
-                status=
-                    status,
-
-                failed_stage=(
-                    None
-                    if status == "success"
-                    else failed_stage
-                ),
-
-                timings=
-                    timings,
-
-                counters=
-                    counters,
-            )
 
     # ======================================================
     # Direct path selection
@@ -1023,10 +873,7 @@ class GraphPlanner:
         candidate_paths: list[
             PhysicalPath
         ],
-        timings: dict[
-            str,
-            float,
-        ],
+        trace: PerfTrace,
         counters: dict[
             str,
             int,
@@ -1037,29 +884,17 @@ class GraphPlanner:
             "ranking_calls"
         ] += 1
 
-        started = (
-            time.perf_counter()
-        )
+        with trace.stage(
+            "path_ranking",
+            mark=False,
+        ):
 
-        result = (
-            self._path_ranker
-            .select_best(
-                candidate_paths
+            result = (
+                self._path_ranker
+                .select_best(
+                    candidate_paths
+                )
             )
-        )
-
-        self._accumulate_timing(
-            timings=
-                timings,
-
-            stage=
-                "path_ranking",
-
-            elapsed_ms=
-                self._elapsed_ms(
-                    started
-                ),
-        )
 
         return result
 
@@ -1072,10 +907,7 @@ class GraphPlanner:
         candidate_paths: list[
             PhysicalPath
         ],
-        timings: dict[
-            str,
-            float,
-        ],
+        trace: PerfTrace,
         counters: dict[
             str,
             int,
@@ -1110,8 +942,8 @@ class GraphPlanner:
                     candidate_paths=
                         remaining,
 
-                    timings=
-                        timings,
+                    trace=
+                        trace,
 
                     counters=
                         counters,
@@ -1129,32 +961,20 @@ class GraphPlanner:
                 "semantic_path_candidates_checked"
             ] += 1
 
-            started = (
-                time.perf_counter()
-            )
+            with trace.stage(
+                "semantic_path_validation",
+                mark=False,
+            ):
 
-            semantic_chain = (
-                self._validate_semantic_path(
-                    physical_path=
-                        candidate,
+                semantic_chain = (
+                    self._validate_semantic_path(
+                        physical_path=
+                            candidate,
 
-                    counters=
-                        counters,
+                        counters=
+                            counters,
+                    )
                 )
-            )
-
-            self._accumulate_timing(
-                timings=
-                    timings,
-
-                stage=
-                    "semantic_path_validation",
-
-                elapsed_ms=
-                    self._elapsed_ms(
-                        started
-                    ),
-            )
 
             # ----------------------------------------------
             # Complete semantic authorization succeeded.
@@ -1447,135 +1267,6 @@ class GraphPlanner:
                 for join
                 in physical_path.joins
             ),
-        )
-
-    # ======================================================
-    # Timing helpers
-    # ======================================================
-
-    @staticmethod
-    def _elapsed_ms(
-        started: float,
-    ) -> float:
-
-        return round(
-            (
-                time.perf_counter()
-                - started
-            )
-            * 1000,
-            2,
-        )
-
-    @staticmethod
-    def _accumulate_timing(
-        timings: dict[
-            str,
-            float,
-        ],
-        stage: str,
-        elapsed_ms: float,
-    ) -> None:
-
-        timings[
-            stage
-        ] = (
-            timings.get(
-                stage,
-                0.0,
-            )
-            + elapsed_ms
-        )
-
-    # ======================================================
-    # Structured performance logging
-    # ======================================================
-
-    @staticmethod
-    def _log_timings(
-        planner_id: str,
-        status: str,
-        failed_stage: str | None,
-        timings: dict[
-            str,
-            float,
-        ],
-        counters: dict[
-            str,
-            int,
-        ],
-    ) -> None:
-
-        ordered_stages = [
-            "concept_normalization",
-            "table_resolution",
-            "semantic_relationship",
-            "physical_path_lookup",
-            "path_ranking",
-            "semantic_path_validation",
-            "existence_path_lookup",
-            "graph_plan_build",
-            "total",
-        ]
-
-        timing_text = " ".join(
-            (
-                f"{stage}_ms="
-                f"{timings[stage]:.2f}"
-            )
-
-            for stage
-            in ordered_stages
-
-            if stage in timings
-        )
-
-        logger.info(
-            "FLOWONE_GRAPH_PERF "
-            "planner_id=%s "
-            "status=%s "
-            "failed_stage=%s "
-            "concepts=%s "
-            "table_lookups=%s "
-            "semantic_lookups=%s "
-            "semantic_bridge_lookups=%s "
-            "semantic_path_candidates_checked=%s "
-            "physical_path_lookups=%s "
-            "candidate_paths=%s "
-            "ranking_calls=%s "
-            "existence_branches=%s "
-            "%s",
-            planner_id,
-            status,
-            failed_stage or "-",
-            counters[
-                "concept_count"
-            ],
-            counters[
-                "table_lookups"
-            ],
-            counters[
-                "semantic_lookups"
-            ],
-            counters[
-                "semantic_bridge_lookups"
-            ],
-            counters[
-                "semantic_path_candidates_checked"
-            ],
-            counters[
-                "physical_path_lookups"
-            ],
-            counters[
-                "candidate_path_count"
-            ],
-            counters[
-                "ranking_calls"
-            ],
-            counters[
-                "existence_branch_count"
-            ],
-            timing_text,
         )
 
     # ======================================================

@@ -1,3 +1,5 @@
+import logging
+
 from typing import Any
 
 from neo4j import (
@@ -6,6 +8,11 @@ from neo4j import (
 )
 
 from config import settings
+
+
+logger = logging.getLogger(
+    "uvicorn.error"
+)
 
 
 class Neo4jClient:
@@ -70,9 +77,9 @@ class Neo4jClient:
 
         except Exception as exc:
 
-            print(
-                "Neo4j health check failed: "
-                f"{exc}"
+            logger.warning(
+                "Neo4j health check failed: %s",
+                exc,
             )
 
             return False
