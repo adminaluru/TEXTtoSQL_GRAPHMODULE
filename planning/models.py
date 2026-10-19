@@ -29,6 +29,10 @@ class QueryFilter(BaseModel):
 
     value: Any
 
+    # A company (tenant) restriction added by access policy, not by the
+    # question. Policies may move it into a LEFT JOIN's ON clause, never drop it.
+    tenant_scope: bool = False
+
 
 # ==========================================================
 # Projection
@@ -113,6 +117,16 @@ class QueryAggregation(BaseModel):
     column: str
     alias: str
 
+    # COALESCE(<aggregate>, 0) for groups without records (D-005).
+    # Only meaningful for SUM and COUNT; the compiler rejects others.
+    empty_as_zero: bool = False
+
+    # Count of measure records whose value is NULL (D-006), selected as
+    # COUNT(table.missing_key_column) FILTER (WHERE table.column IS NULL).
+    missing_key_column: str | None = None
+
+    missing_alias: str | None = None
+
 
 class QueryJoin(BaseModel):
     model_config = ConfigDict(
@@ -131,6 +145,13 @@ class QueryJoin(BaseModel):
     ] = "INNER"
 
     validation_status: str | None = None
+
+    # Equality conditions on the joined table, compiled into the ON clause
+    # as bound parameters. Used for company restrictions on LEFT JOINs so
+    # rows from other companies are excluded without dropping empty groups.
+    on_filters: list[QueryFilter] = Field(
+        default_factory=list
+    )
 
 
 # ==========================================================
@@ -289,4 +310,15 @@ class QueryPlan(BaseModel):
         default=None,
         ge=1,
         le=1000,
+    )
+
+    # Alias of the currency projection added by CurrencySplitter
+    # (decision D-004). When set, monetary aggregates are grouped
+    # by currency and never combined across currencies.
+    currency_alias: str | None = None
+
+    # User-facing notes about what the result does not cover, carried
+    # with the plan so every execution path reports them.
+    result_notes: list[str] = Field(
+        default_factory=list
     )

@@ -2,7 +2,7 @@
 Repair loop behaviour against the live ontology and
 PostgreSQL. Only the LLM is scripted.
 
-GQ001 Golden Data: total payment for Blue Prism = 24000.00
+GQ001 Golden Data: total payment for Blue Prism Technologies LE-1001 = 4000.00
 """
 
 from decimal import Decimal
@@ -18,8 +18,10 @@ from api.application import create_app
 from database.neo4j import Neo4jClient
 from execution.postgres_executor import PostgreSQLExecutor
 
+pytestmark = pytest.mark.integration
 
-QUESTION = "How much has Blue Prism paid?"
+
+QUESTION = "How much has Blue Prism Technologies LE-1001 paid?"
 
 GOOD = {
     "intent": "aggregate",
@@ -32,7 +34,7 @@ GOOD = {
         {
             "concept": "Customer",
             "attribute": "customer name",
-            "value": "Blue Prism",
+            "value": "Blue Prism Technologies LE-1001",
         }
     ],
     "aggregation": "SUM",
@@ -47,7 +49,7 @@ UNKNOWN_CONCEPT = {
         {
             "concept": "Client",
             "attribute": "customer name",
-            "value": "Blue Prism",
+            "value": "Blue Prism Technologies LE-1001",
         }
     ],
 }
@@ -121,7 +123,7 @@ def test_first_attempt_success_has_no_warning(neo4j):
 
     answer = _agent(neo4j, model).ask(QUESTION)
 
-    assert _total(answer) == Decimal("24000.00")
+    assert _total(answer) == Decimal("4000.00")
     assert REPAIR_WARNING not in answer.warnings
     assert len(model.requests) == 1
 
@@ -132,7 +134,7 @@ def test_unknown_concept_is_repaired(neo4j):
 
     answer = _agent(neo4j, model).ask(QUESTION)
 
-    assert _total(answer) == Decimal("24000.00")
+    assert _total(answer) == Decimal("4000.00")
     assert REPAIR_WARNING in answer.warnings
     assert len(model.requests) == 2
 
@@ -152,7 +154,7 @@ def test_planning_stage_failure_is_repaired_with_previous_answer(neo4j):
 
     answer = _agent(neo4j, model).ask(QUESTION)
 
-    assert _total(answer) == Decimal("24000.00")
+    assert _total(answer) == Decimal("4000.00")
     assert len(model.requests) == 2
 
     # The model sees its own rejected analysis.
@@ -168,7 +170,7 @@ def test_inconsistent_analysis_is_repaired(neo4j):
 
     answer = _agent(neo4j, model).ask(QUESTION)
 
-    assert _total(answer) == Decimal("24000.00")
+    assert _total(answer) == Decimal("4000.00")
     assert len(model.requests) == 2
 
 

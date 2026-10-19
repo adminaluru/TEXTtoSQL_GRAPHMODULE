@@ -65,6 +65,8 @@ from sql_validator.models import (
     SQLValidationResult,
 )
 
+pytestmark = pytest.mark.integration
+
 
 # ==========================================================
 # GQ001 execution slice

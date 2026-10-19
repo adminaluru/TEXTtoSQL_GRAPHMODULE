@@ -1,0 +1,352 @@
+{
+  "mode": "dry-run",
+  "rows": [
+    {
+      "id": "R01",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R02",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R03",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R04",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R05",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R06",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R07",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R08",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R09",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R10",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R11",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R12",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R13",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R14",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R15",
+      "expected": [
+        "database"
+      ],
+      "routes": [
+        "text_to_sql"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R16",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R17",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R18",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R19",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R20",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R21",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R22",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R23",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R24",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "rules",
+      "correct": true
+    },
+    {
+      "id": "R25",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "unclear_both",
+      "correct": false
+    },
+    {
+      "id": "R26",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "unclear_both",
+      "correct": false
+    },
+    {
+      "id": "R27",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "unclear_both",
+      "correct": true
+    },
+    {
+      "id": "R28",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "unclear_both",
+      "correct": true
+    },
+    {
+      "id": "R29",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "unclear_both",
+      "correct": false
+    },
+    {
+      "id": "R30",
+      "expected": [
+        "documents"
+      ],
+      "routes": [
+        "text_to_sql",
+        "document_rag"
+      ],
+      "method": "unclear_both",
+      "correct": false
+    }
+  ],
+  "benchmark_version": "1",
+  "run_at": "2026-10-16T18:51:23+00:00",
+  "summary": "Routing benchmark (dry-run), 30 questions\nRoute exactly right: 26/30\n  R25: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\n  R26: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\n  R29: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\n  R30: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])"
+}

@@ -1,0 +1,9 @@
+{
+  "_purpose": "Business record words (and business verbs) that, together with a measure or a listing word, send a question to the database (decision D-011). Reviewed data, not code: add words here when the ontology gains concepts.",
+  "record_words": [
+    "invoice", "payment", "receipt", "claim", "customer", "client", "promise", "adjustment", "credit",
+    "debit", "note", "balance", "amount", "dunning", "reminder", "collection", "dispute", "deduction",
+    "tds", "tax", "gst", "currency", "company", "entity",
+    "paid", "pay", "owe", "owes", "owed", "billed", "invoiced", "overdue", "outstanding"
+  ]
+}

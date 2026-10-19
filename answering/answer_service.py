@@ -1,6 +1,6 @@
 import re
 from decimal import Decimal
-from typing import Any
+from typing import Any, Sequence
 
 from answering.models import (
     AnswerResponse,
@@ -9,6 +9,8 @@ from answering.models import (
 from nlu.models import (
     QuestionAnalysis,
 )
+
+from semantic.existence import existence_concepts
 
 from result_analysis.models import (
     ResultAnalysis,
@@ -36,7 +38,13 @@ class AnswerService:
         self,
         analysis: QuestionAnalysis,
         result: ResultAnalysis,
+        chosen_labels: Sequence[str] = (),
     ) -> AnswerResponse:
+        """
+        chosen_labels: labels of records the caller picked from a
+        clarification; they name the subject instead of the ambiguous
+        name typed in the question.
+        """
 
         # ==================================================
         # 1. Empty result
@@ -67,6 +75,7 @@ class AnswerService:
             return self._build_scalar_answer(
                 analysis=analysis,
                 result=result,
+                chosen_labels=chosen_labels,
             )
 
         # ==================================================
@@ -75,9 +84,27 @@ class AnswerService:
 
         if result.result_type == "tabular":
 
-            return self._build_tabular_answer(
+            # One monetary value per currency (D-004).
+            if (
+                result.currency_alias
+                and len(self._value_columns(result)) == 2
+            ):
+                return self._build_currency_split_answer(
+                    analysis=analysis,
+                    result=result,
+                    chosen_labels=chosen_labels,
+                )
+
+            answer = self._build_tabular_answer(
                 result=result
             )
+
+            if result.missing_count:
+                answer.warnings.append(
+                    self._missing_sentence(analysis, result.missing_count).strip()
+                )
+
+            return answer
 
         raise ValueError(
             "Unsupported result type: "
@@ -92,6 +119,7 @@ class AnswerService:
         self,
         analysis: QuestionAnalysis,
         result: ResultAnalysis,
+        chosen_labels: Sequence[str] = (),
     ) -> AnswerResponse:
 
         value = result.scalar_value
@@ -126,9 +154,17 @@ class AnswerService:
             )
         )
 
+        # Monetary values always carry their currency (D-004).
+        if result.currency_alias:
+            formatted_value = (
+                f"{formatted_value} "
+                f"{self._currency_label(result.scalar_currency)}"
+            )
+
         subject = (
             self._resolve_subject(
-                analysis
+                analysis,
+                chosen_labels,
             )
         )
 
@@ -169,11 +205,16 @@ class AnswerService:
                 )
             )
 
+            qualifier = (
+                self._qualifier(analysis)
+                + self._conditions(analysis)
+            )
+
             if subject:
 
                 answer = (
                     f"The count of "
-                    f"{concept_label} records "
+                    f"{concept_label} records{qualifier} "
                     f"for {subject} is "
                     f"{formatted_value}."
                 )
@@ -182,7 +223,7 @@ class AnswerService:
 
                 answer = (
                     f"The count of "
-                    f"{concept_label} records "
+                    f"{concept_label} records{qualifier} "
                     f"is {formatted_value}."
                 )
 
@@ -206,11 +247,16 @@ class AnswerService:
                 )
             )
 
+            scope = (
+                self._record_scope(analysis)
+                + self._conditions(analysis)
+            )
+
             if subject:
 
                 answer = (
                     f"The {aggregation_label}"
-                    f"{measure_label} "
+                    f"{measure_label}{scope} "
                     f"for {subject} is "
                     f"{formatted_value}."
                 )
@@ -219,9 +265,14 @@ class AnswerService:
 
                 answer = (
                     f"The {aggregation_label}"
-                    f"{measure_label} is "
+                    f"{measure_label}{scope} is "
                     f"{formatted_value}."
                 )
+
+        answer += self._missing_sentence(
+            analysis,
+            result.missing_count,
+        )
 
         return AnswerResponse(
             answer=answer,
@@ -233,12 +284,181 @@ class AnswerService:
             data={
                 "alias":
                     result.scalar_alias,
-
                 "value":
                     value,
+                **(
+                    {"currency": result.scalar_currency}
+                    if result.currency_alias
+                    else {}
+                ),
+                **(
+                    {"missing_count": result.missing_count}
+                    if result.missing_alias
+                    else {}
+                ),
             },
-
             warnings=result.warnings,
+        )
+
+    # ======================================================
+    # Currency-split answer
+    # ======================================================
+
+    def _build_currency_split_answer(
+        self,
+        analysis: QuestionAnalysis,
+        result: ResultAnalysis,
+        chosen_labels: Sequence[str] = (),
+    ) -> AnswerResponse:
+
+        value_alias = next(
+            c for c in self._value_columns(result)
+            if c != result.currency_alias
+        )
+
+        rows = sorted(
+            result.rows,
+            key=lambda r: (
+                r[result.currency_alias] is None,
+                r[result.currency_alias] or "",
+            ),
+        )
+
+        parts = "; ".join(
+            (
+                self._format_value(r[value_alias])
+                if r[value_alias] is not None
+                else "no value"
+            )
+            + " "
+            + self._currency_label(r[result.currency_alias])
+            for r in rows
+        )
+
+        measure_label = self._humanize(
+            analysis.measure_attribute
+            or value_alias
+        )
+
+        aggregation_label = self._aggregation_label(
+            analysis.aggregation
+        )
+
+        subject = self._resolve_subject(analysis, chosen_labels)
+
+        scope = f" for {subject}" if subject else ""
+
+        return AnswerResponse(
+            answer=(
+                f"The {aggregation_label}{measure_label}"
+                f"{self._record_scope(analysis)}"
+                f"{self._conditions(analysis)}{scope} "
+                f"is reported per currency, because amounts in "
+                f"different currencies are not added together: "
+                f"{parts}."
+                + self._missing_sentence(analysis, result.missing_count)
+            ),
+            result_type="tabular",
+            row_count=result.row_count,
+            data=rows,
+            warnings=result.warnings,
+        )
+
+    @staticmethod
+    def _value_columns(
+        result: ResultAnalysis,
+    ) -> list[str]:
+
+        return [
+            c for c in result.columns
+            if c != result.missing_alias
+        ]
+
+    def _missing_sentence(
+        self,
+        analysis: QuestionAnalysis,
+        missing: int | None,
+    ) -> str:
+        """
+        D-006: records whose value is missing are excluded by SQL
+        aggregation; say so instead of hiding the gap.
+        """
+
+        if not missing:
+            return ""
+
+        concept = self._humanize(
+            analysis.measure_concept or "record"
+        )
+
+        measure = self._humanize(
+            analysis.measure_attribute or "value"
+        )
+
+        plural = missing != 1
+
+        return (
+            f" {missing} {concept} record{'s' if plural else ''} "
+            f"with no {measure} {'are' if plural else 'is'} "
+            f"not included."
+        )
+
+    def _qualifier(
+        self,
+        analysis: QuestionAnalysis,
+    ) -> str:
+        """
+        Conditions applied as EXISTS (semantic.existence), e.g.
+        " with related <concept> records". An answer must
+        never read as if it covered all records.
+        """
+
+        concepts = existence_concepts(
+            intent=analysis.intent,
+            concepts=analysis.concepts,
+            result_concept=analysis.result_concept,
+            measure_concept=analysis.measure_concept,
+            filter_concepts={e.concept for e in analysis.entities},
+            grouping_concepts=set(analysis.group_by_concepts),
+        )
+
+        if not concepts:
+            return ""
+
+        labels = [self._humanize(c) for c in concepts]
+
+        joined = (
+            labels[0]
+            if len(labels) == 1
+            else ", ".join(labels[:-1]) + " and " + labels[-1]
+        )
+
+        return f" with related {joined} records"
+
+    def _record_scope(
+        self,
+        analysis: QuestionAnalysis,
+    ) -> str:
+
+        qualifier = self._qualifier(analysis)
+
+        if not qualifier:
+            return ""
+
+        return (
+            f" of {self._humanize(analysis.result_concept or 'record')} "
+            f"records{qualifier}"
+        )
+
+    @staticmethod
+    def _currency_label(
+        currency: Any,
+    ) -> str:
+
+        return (
+            str(currency)
+            if currency not in (None, "")
+            else "(currency unknown)"
         )
 
     # ======================================================
@@ -291,22 +511,36 @@ class AnswerService:
     @staticmethod
     def _resolve_subject(
         analysis: QuestionAnalysis,
+        chosen_labels: Sequence[str] = (),
     ) -> str | None:
         """
         Use explicit entity values from the original
         business question as presentation context.
 
-        No concept-specific rules are used.
+        A record the caller picked from a clarification is named
+        by its choice label; a typed name it covers is dropped so
+        it is not repeated. No concept-specific rules are used.
         """
 
-        if not analysis.entities:
+        if not analysis.entities and not chosen_labels:
             return None
 
+        # Only named records are the subject ("for Blue Prism ...");
+        # other conditions read "with invoice status OPEN".
         values = [
             entity.value
             for entity
             in analysis.entities
             if entity.value
+            and AnswerService._is_name_attribute(entity.attribute)
+        ]
+
+        chosen = [label for label in chosen_labels if label]
+        covered = [label.casefold() for label in chosen]
+        values = chosen + [
+            value
+            for value in values
+            if not any(value.casefold() in label for label in covered)
         ]
 
         if not values:
@@ -315,6 +549,37 @@ class AnswerService:
         return ", ".join(
             values
         )
+
+    @staticmethod
+    def _is_name_attribute(
+        attribute: str,
+    ) -> bool:
+
+        normalized = " ".join(
+            attribute.lower().split()
+        )
+
+        return (
+            normalized == "name"
+            or normalized.endswith(" name")
+        )
+
+    def _conditions(
+        self,
+        analysis: QuestionAnalysis,
+    ) -> str:
+
+        conditions = [
+            f"{self._humanize(entity.attribute)} {entity.value}"
+            for entity in analysis.entities
+            if entity.value
+            and not self._is_name_attribute(entity.attribute)
+        ]
+
+        if not conditions:
+            return ""
+
+        return " with " + " and ".join(conditions)
 
     # ======================================================
     # Aggregation wording

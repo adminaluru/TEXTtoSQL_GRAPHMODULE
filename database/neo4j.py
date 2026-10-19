@@ -5,9 +5,16 @@ from typing import Any
 from neo4j import (
     Driver,
     GraphDatabase,
+    Query,
+)
+from neo4j.exceptions import (
+    ServiceUnavailable,
+    SessionExpired,
 )
 
 from config import settings
+
+from observability.deadline import cap_timeout
 
 
 logger = logging.getLogger(
@@ -51,7 +58,22 @@ class Neo4jClient:
                     .neo4j_password
                     .get_secret_value(),
                 ),
+
+                # Never wait indefinitely for an unreachable
+                # server or a busy connection pool.
+                connection_timeout=
+                    settings.neo4j_connection_timeout_seconds,
+
+                connection_acquisition_timeout=
+                    settings.neo4j_connection_timeout_seconds,
+
+                max_transaction_retry_time=
+                    settings.neo4j_connection_timeout_seconds,
             )
+        )
+
+        self._query_timeout_seconds = (
+            settings.neo4j_query_timeout_seconds
         )
 
         self._database = (
@@ -197,20 +219,34 @@ class Neo4jClient:
             or {}
         )
 
-        with self._driver.session(
-            database=self._database
-        ) as session:
+        # The server aborts the query when its time is up.
+        bounded = Query(
+            query,
+            timeout=cap_timeout(self._query_timeout_seconds),
+        )
 
-            result = session.run(
-                query,
-                parameters,
-            )
+        try:
 
-            return [
-                record.data()
-                for record
-                in result
-            ]
+            with self._driver.session(
+                database=self._database
+            ) as session:
+
+                result = session.run(
+                    bounded,
+                    parameters,
+                )
+
+                return [
+                    record.data()
+                    for record
+                    in result
+                ]
+
+        except (ServiceUnavailable, SessionExpired) as exc:
+            # Surfaces as "unavailable" (503), not an internal error.
+            raise ConnectionError(
+                "Neo4j unavailable."
+            ) from exc
 
     # ======================================================
     # Generic write

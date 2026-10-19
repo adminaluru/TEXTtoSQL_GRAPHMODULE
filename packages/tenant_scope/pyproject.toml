@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowone-tenant-scope"
+version = "0.2.0"
+description = "Logical tenant to physical owner mapping and fail-closed row scope predicates"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.7,<3", "flowone-hybrid-contracts>=0.3,<0.4"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

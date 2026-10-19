@@ -47,6 +47,17 @@ class ResultAnalysis(BaseModel):
 
     scalar_value: Any | None = None
 
+    # Set when monetary results are split by currency (D-004).
+    # scalar_currency may be None when a row's currency is unknown.
+    currency_alias: str | None = None
+
+    scalar_currency: str | None = None
+
+    # Measure records with no value, excluded by SQL aggregation (D-006).
+    missing_alias: str | None = None
+
+    missing_count: int | None = None
+
     rows: list[
         dict[str, Any]
     ] = Field(

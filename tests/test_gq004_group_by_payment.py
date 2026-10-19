@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
 from decimal import Decimal
 
 from ai.providers.mock_chat import (
@@ -46,11 +50,16 @@ from execution.postgres_executor import (
 #         Customer.id,
 #         Customer.name
 #
-# Golden PostgreSQL truth:
+# Golden PostgreSQL truth (read-only SQL, 2026-10-15):
 #
-#     18 physical Customer entities
-#     4000.00 payment total per entity
-#     72000.00 overall
+#     21 physical Customer entities
+#     18 with payments: 4000.00 USD each, 72000.00 overall
+#     3 without payments, listed with 0 (decision D-005):
+#         Bharat Industrial Systems
+#         Global Tech Imports LLC
+#         Horizon India Enterprises
+#     currency = linked invoice currency (decision D-004);
+#     unknown for customers without payments
 #
 # NOTE:
 #
@@ -134,7 +143,7 @@ def test_gq004_payment_amount_by_customer_end_to_end():
 
         assert (
             response.row_count
-            == 18
+            == 21
         )
 
         assert (
@@ -149,7 +158,7 @@ def test_gq004_payment_amount_by_customer_end_to_end():
 
         assert (
             len(response.data)
-            == 18
+            == 21
         )
 
         # ==================================================
@@ -174,7 +183,7 @@ def test_gq004_payment_amount_by_customer_end_to_end():
         # ==================================================
         # Golden reconciliation
         #
-        # 18 × 4000.00 = 72000.00
+        # 18 × 4000.00 + 3 × 0 = 72000.00
         # ==================================================
 
         total = sum(
@@ -222,7 +231,35 @@ def test_gq004_payment_amount_by_customer_end_to_end():
 
         assert (
             len(customer_totals)
-            == 18
+            == 21
+        )
+
+        # ==================================================
+        # D-005: customers without payments are listed with 0
+        # and an unknown currency, never silently dropped.
+        # ==================================================
+
+        zero_rows = {
+            row["customer_name"]: row
+            for row in response.data
+            if Decimal(str(row["sum_payment_amount"])) == 0
+        }
+
+        assert set(zero_rows) == {
+            "Bharat Industrial Systems",
+            "Global Tech Imports LLC",
+            "Horizon India Enterprises",
+        }
+
+        assert all(
+            row["currency"] is None
+            for row in zero_rows.values()
+        )
+
+        assert all(
+            row["currency"] == "USD"
+            for row in response.data
+            if row["customer_name"] not in zero_rows
         )
 
         # ==================================================

@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
 from decimal import Decimal
 
 from ai.providers.mock_chat import (
@@ -20,7 +24,7 @@ from execution.postgres_executor import (
 # ==========================================================
 # GQ005
 #
-# What is the total claim amount for Blue Prism?
+# What is the total claim amount for Blue Prism Technologies LE-1001?
 #
 # Capability:
 #
@@ -43,7 +47,7 @@ from execution.postgres_executor import (
 #
 # Golden PostgreSQL value:
 #
-#     4500.00
+#     500.00
 # ==========================================================
 
 
@@ -79,7 +83,7 @@ def test_gq005_claim_amount_multi_hop_end_to_end():
                     "customer name",
 
                 "value":
-                    "Blue Prism",
+                    "Blue Prism Technologies LE-1001",
             }
         ],
 
@@ -116,7 +120,7 @@ def test_gq005_claim_amount_multi_hop_end_to_end():
         response = (
             agent.ask(
                 "What is the total claim "
-                "amount for Blue Prism?"
+                "amount for Blue Prism Technologies LE-1001?"
             )
         )
 
@@ -160,7 +164,7 @@ def test_gq005_claim_amount_multi_hop_end_to_end():
                 )
             )
             ==
-            Decimal("4500.00")
+            Decimal("500.00")
         )
 
         # ==================================================
@@ -168,12 +172,12 @@ def test_gq005_claim_amount_multi_hop_end_to_end():
         # ==================================================
 
         assert (
-            "Blue Prism"
+            "Blue Prism Technologies LE-1001"
             in response.answer
         )
 
         assert (
-            "4500.00"
+            "500.00"
             in response.answer
         )
 

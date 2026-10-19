@@ -1,0 +1,49 @@
+{
+  "_purpose": "DEVELOPMENT ONLY. Synthetic logical tenants for the Golden Data (decision D-002: one company per tenant). The production mapping source is not decided yet.",
+  "_coverage": "Every ontology table is listed here or deliberately left out. Left out (no link to a company, so questions about them are refused): erp_inv_export_details, erp_invoice_action_event, erp_invoice_header_note, sl_sales_invoice, sl_so_invoice_match.",
+  "_links": "Tables without their own company column are owned through their invoice (assumption A-OWN-1, to be confirmed by the owner).",
+  "tenants": [
+    {"tenant_id": "tenant-acme", "owner_key": 527},
+    {"tenant_id": "tenant-nova", "owner_key": 528},
+    {"tenant_id": "tenant-vertex", "owner_key": 529}
+  ],
+  "columns": [
+    {"table": "public.d_company", "column": "id"},
+    {"table": "public.d_col_plan_invoice_actions", "column": "company_id"},
+    {"table": "public.d_invoice_documents", "column": "company_id"},
+    {"table": "public.d_legalentity", "column": "company_id"},
+    {"table": "public.d_payment_gateway_request_invoice", "column": "company_id"},
+    {"table": "public.d_payment_request_invoice", "column": "company_id"},
+    {"table": "public.erp_customer_details", "column": "company_id"},
+    {"table": "public.erp_inv_additional_info", "column": "company_id"},
+    {"table": "public.erp_inv_address", "column": "company_id"},
+    {"table": "public.erp_inv_adjustments", "column": "company_id"},
+    {"table": "public.erp_invoice_details", "column": "company_id"},
+    {"table": "public.erp_invoice_extended_info", "column": "company_id"},
+    {"table": "public.erp_invoice_items", "column": "company_id"},
+    {"table": "public.erp_notes_invoice", "column": "company_id"},
+    {"table": "public.erp_payment_receipt", "column": "company_id"},
+    {"table": "public.gst_cdn_info", "column": "company_id"},
+    {"table": "public.gst_inv_info", "column": "company_id"},
+    {"table": "public.gst_invoice_details", "column": "company_id"},
+    {"table": "public.gst_invoice_request", "column": "company_id"},
+    {"table": "public.sl_erp_invoice_withholding", "column": "company_id"},
+    {"table": "public.sl_warehouses", "column": "company_id"}
+  ],
+  "links": [
+    {"table": "public.claim_inv_adj_link", "via": "public.erp_invoice_details"},
+    {"table": "public.d_claim_invoice", "via": "public.erp_invoice_details"},
+    {"table": "public.d_claim_invoice_item", "via": "public.erp_invoice_details"},
+    {"table": "public.d_col_plan_invoice_mapping", "via": "public.erp_invoice_details"},
+    {"table": "public.d_customer_dunning_col_action", "via": "public.erp_invoice_details"},
+    {"table": "public.d_external_erp_invoice_load", "via": "public.erp_invoice_details"},
+    {"table": "public.d_promise_to_pay_broken_details", "via": "public.erp_invoice_details"},
+    {"table": "public.d_promise_to_pay_invoice", "via": "public.erp_invoice_details"},
+    {"table": "public.erp_inv_adjustments_item", "via": "public.erp_invoice_details"},
+    {"table": "public.erp_inv_export_items", "via": "public.erp_invoice_details"},
+    {"table": "public.erp_inv_payable_contact", "via": "public.erp_invoice_details"},
+    {"table": "public.erp_invoice_salesquote_match", "via": "public.erp_invoice_details"},
+    {"table": "public.erp_invoice_tags", "via": "public.erp_invoice_details"},
+    {"table": "public.erp_payment_settled_inv_discount", "via": "public.erp_invoice_details"}
+  ]
+}

@@ -3,12 +3,20 @@ from contextlib import contextmanager
 from time import perf_counter
 
 import psycopg
+from psycopg import errors as pg_errors
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool, PoolTimeout
 
 from config import settings
 
+from observability.deadline import (
+    DeadlineExceeded,
+    cap_timeout,
+    remaining_seconds,
+)
+
 from execution.models import (
+    DatabasePrivileges,
     PostgreSQLExecutionResult,
 )
 
@@ -34,7 +42,10 @@ class PostgreSQLExecutor:
     - execute only validated + guardrail-approved queries
     - use parameterized SQL
     - execute inside a READ ONLY transaction
-    - enforce PostgreSQL statement timeout
+    - enforce PostgreSQL statement and lock timeouts, never
+      longer than the time left for the whole question
+    - report timeouts and lost connections as TimeoutError /
+      ConnectionError with safe messages (no SQL, no DSN)
     - bound returned result rows
     - return plain structured data
     - reuse connections through an optional pool
@@ -97,6 +108,55 @@ class PostgreSQLExecutor:
         except Exception:
             return False
 
+    def privileges(self, schema: str = "public") -> DatabasePrivileges:
+        """
+        Report what this login may do (Step 7, least privilege).
+
+        Read-only: one catalog query inside a READ ONLY
+        transaction. Used at start-up to refuse an unsafe
+        production login.
+        """
+
+        with self._connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cursor:
+                    cursor.execute("SET TRANSACTION READ ONLY")
+                    cursor.execute(
+                        """
+                        SELECT
+                            current_user,
+                            r.rolsuper,
+                            r.rolbypassrls,
+                            (
+                                SELECT count(*)
+                                FROM pg_class c
+                                JOIN pg_namespace n ON n.oid = c.relnamespace
+                                WHERE n.nspname = %s
+                                  AND c.relkind IN ('r', 'p')
+                                  AND (
+                                      has_table_privilege(c.oid, 'INSERT')
+                                      OR has_table_privilege(c.oid, 'UPDATE')
+                                      OR has_table_privilege(c.oid, 'DELETE')
+                                      OR has_table_privilege(c.oid, 'TRUNCATE')
+                                  )
+                            ),
+                            has_schema_privilege(%s, 'CREATE')
+                            OR has_database_privilege(current_database(), 'CREATE')
+                        FROM pg_roles r
+                        WHERE r.rolname = current_user
+                        """,
+                        (schema, schema),
+                    )
+                    role, superuser, bypass, writable, create = cursor.fetchone()
+
+        return DatabasePrivileges(
+            role=role,
+            is_superuser=superuser,
+            bypasses_row_security=bypass,
+            writable_tables=writable,
+            can_create=create,
+        )
+
     @contextmanager
     def _connection(self) -> Iterator[psycopg.Connection]:
         """
@@ -112,7 +172,11 @@ class PostgreSQLExecutor:
             return
 
         try:
-            with self._pool.connection() as conn:
+            # Waiting for a free pooled connection also counts
+            # against the question's deadline.
+            with self._pool.connection(
+                timeout=cap_timeout(self._pool.timeout)
+            ) as conn:
                 yield conn
         except PoolTimeout as exc:
             # Surfaces as 503 rather than 500 at the API.
@@ -167,8 +231,41 @@ class PostgreSQLExecutor:
 
         # --------------------------------------------------
         # 3. Execute using a pooled or short-lived
-        #    connection.
+        #    connection, within the question's deadline.
         # --------------------------------------------------
+
+        timeout_ms = max(
+            1,
+            int(
+                cap_timeout(self._statement_timeout_ms / 1000.0)
+                * 1000
+            ),
+        )
+
+        try:
+            return self._run(compiled, timeout_ms)
+
+        except (pg_errors.QueryCanceled, pg_errors.LockNotAvailable) as exc:
+            # PostgreSQL cancelled the statement (statement or
+            # lock timeout). Never echo the database message: it
+            # can contain SQL text and parameter values.
+            remaining = remaining_seconds()
+            if remaining is not None and remaining <= 0.05:
+                raise DeadlineExceeded() from exc
+            raise TimeoutError(
+                "PostgreSQL statement timed out."
+            ) from exc
+
+        except psycopg.OperationalError as exc:
+            raise ConnectionError(
+                "PostgreSQL unavailable."
+            ) from exc
+
+    def _run(
+        self,
+        compiled: CompiledQuery,
+        timeout_ms: int,
+    ) -> PostgreSQLExecutionResult:
 
         with self._connection() as conn:
 
@@ -204,17 +301,13 @@ class PostgreSQLExecutor:
 
                     cursor.execute(
                         """
-                        SELECT set_config(
-                            'statement_timeout',
-                            %s,
-                            true
-                        )
+                        SELECT
+                            set_config('statement_timeout', %s, true),
+                            set_config('lock_timeout', %s, true)
                         """,
                         (
-                            (
-                                f"{self._statement_timeout_ms}"
-                                "ms"
-                            ),
+                            f"{timeout_ms}ms",
+                            f"{timeout_ms}ms",
                         ),
                     )
 

@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
 from ai.providers.mock_chat import MockChatModel
 
 from agent.factory import build_research_agent

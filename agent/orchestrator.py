@@ -47,6 +47,18 @@ from planning.column_resolver import (
     ColumnResolver,
 )
 
+from clarification_state import ClarificationChoice, PendingSelectionStore
+from hybrid_contracts import AccessContext, ClarificationResponse
+
+from observability.deadline import check_deadline, request_deadline
+from planning.currency_split import CurrencySplitter
+from planning.tenant_plan_scope import TenantPlanScope
+from planning.empty_groups import EmptyGroupPolicy
+from planning.missing_values import MissingValuePolicy
+from planning.value_domain_guard import ValueDomainGuard
+from planning.entity_match_guard import EntityMatchGuard
+from planning.errors import UnsupportedPredicateError
+
 from planning.fanout_guard import (
     FanOutGuard,
 )
@@ -123,7 +135,49 @@ class _Interpretation:
     query_plan: QueryPlan
 
 
+@dataclass(frozen=True)
+class CallerContext:
+    """Verified caller identity (authentication's job, not the question's).
+
+    Required to offer selectable clarification choices and to resume them.
+    """
+
+    access: AccessContext
+
+    conversation_id: str
+
+
+@dataclass
+class _PendingEntity:
+    """Server-side state behind an entity clarification prompt."""
+
+    interpretation: _Interpretation
+
+    # Unpinned plan: every resume re-checks identity from the original name.
+    plan: QueryPlan
+
+    selections: dict
+
+    repaired: bool
+
+    # Labels of records already chosen, so the answer names them
+    # ("Blue Prism — LE-1001") rather than the ambiguous name.
+    chosen_labels: tuple[str, ...] = ()
+
+
+ENTITY_CHOICE_QUESTION = (
+    "This name matches more than one record. Which one do you mean?"
+)
+
+
 class ResearchAgentOrchestrator:
+
+    # Total time budget for one question (Step 7). None = no limit.
+    _request_timeout_seconds: float | None = None
+
+    # Company restriction on every table; set whenever a caller scope exists.
+    _tenant_plan_scope: TenantPlanScope | None = None
+
     """
     End-to-end coordinator for the Research Agent.
 
@@ -195,7 +249,14 @@ class ResearchAgentOrchestrator:
         "grain_resolver",
         "column_resolver",
         "query_plan_builder",
+        "tenant_scope",
+        "currency_split",
+        "empty_groups",
+        "missing_values",
         "fanout_guard",
+        "clarification_resume",
+        "value_domain_guard",
+        "entity_match_guard",
         "sql_compiler",
         "sql_validator",
         "sql_guardrails",
@@ -222,6 +283,14 @@ class ResearchAgentOrchestrator:
         answer_service: AnswerService,
         max_repair_attempts: int = 2,
         repair_budget_seconds: float = 30.0,
+        entity_match_guard: EntityMatchGuard | None = None,
+        clarification_store: PendingSelectionStore | None = None,
+        currency_splitter: CurrencySplitter | None = None,
+        tenant_plan_scope: TenantPlanScope | None = None,
+        empty_group_policy: EmptyGroupPolicy | None = None,
+        missing_value_policy: MissingValuePolicy | None = None,
+        value_domain_guard: ValueDomainGuard | None = None,
+        request_timeout_seconds: float | None = None,
     ) -> None:
 
         if max_repair_attempts < 0:
@@ -229,6 +298,25 @@ class ResearchAgentOrchestrator:
             raise ValueError(
                 "max_repair_attempts cannot be negative."
             )
+
+        self._entity_match_guard = entity_match_guard
+
+        self._clarification_store = clarification_store
+
+        self._currency_splitter = currency_splitter
+
+        self._tenant_plan_scope = tenant_plan_scope
+
+        self._empty_group_policy = empty_group_policy
+
+        self._missing_value_policy = missing_value_policy
+
+        self._value_domain_guard = value_domain_guard
+
+        if request_timeout_seconds is not None and request_timeout_seconds <= 0:
+            raise ValueError("request_timeout_seconds must be positive.")
+
+        self._request_timeout_seconds = request_timeout_seconds
 
         self._max_repair_attempts = (
             max_repair_attempts
@@ -297,6 +385,17 @@ class ResearchAgentOrchestrator:
     def ask(
         self,
         question: str,
+        caller: CallerContext | None = None,
+    ) -> AnswerResponse:
+        """Answer one question within the request deadline."""
+
+        with request_deadline(self._request_timeout_seconds):
+            return self._ask(question, caller)
+
+    def _ask(
+        self,
+        question: str,
+        caller: CallerContext | None,
     ) -> AnswerResponse:
 
         question = (
@@ -349,6 +448,88 @@ class ResearchAgentOrchestrator:
                 return interpretation
 
             # ==================================================
+            # 7. Company (tenant) restriction on EVERY table
+            #
+            # First of the plan policies, so the currency split,
+            # empty groups and fan-out guard all see the
+            # restricted plan. A table with no known owner is
+            # refused, never read unrestricted.
+            # ==================================================
+
+            if self._tenant_plan_scope is not None:
+
+                try:
+
+                    with trace.stage("tenant_scope"):
+
+                        interpretation.query_plan = (
+                            self._tenant_plan_scope.apply(
+                                interpretation.query_plan
+                            )
+                        )
+
+                except UnsupportedPredicateError as exc:
+
+                    trace.fields[
+                        "outcome"
+                    ] = "clarification_unsupported"
+
+                    return self._clarify(trace, str(exc))
+
+            # ==================================================
+            # 7A. Currency split (D-004)
+            #
+            # Before the fan-out guard, so the added currency
+            # join is checked like any other join. Never
+            # repaired: dropping the measure would change the
+            # question.
+            # ==================================================
+
+            if self._currency_splitter is not None:
+
+                try:
+
+                    with trace.stage("currency_split"):
+
+                        interpretation.query_plan = (
+                            self._currency_splitter.apply(
+                                interpretation.query_plan
+                            )
+                        )
+
+                except UnsupportedPredicateError as exc:
+
+                    trace.fields[
+                        "outcome"
+                    ] = "clarification_unsupported"
+
+                    return self._clarify(trace, str(exc))
+
+            # Groups with no records are kept with 0 (D-005), or
+            # the result says they are not listed.
+            if self._empty_group_policy is not None:
+
+                with trace.stage("empty_groups"):
+
+                    interpretation.query_plan = (
+                        self._empty_group_policy.apply(
+                            interpretation.query_plan
+                        )
+                    )
+
+            # Records without a measured value are counted and
+            # disclosed (D-006).
+            if self._missing_value_policy is not None:
+
+                with trace.stage("missing_values"):
+
+                    interpretation.query_plan = (
+                        self._missing_value_policy.apply(
+                            interpretation.query_plan
+                        )
+                    )
+
+            # ==================================================
             # 7B. FanOutGuard
             #
             # SUM / AVG / COUNT must not be inflated by a
@@ -383,7 +564,8 @@ class ResearchAgentOrchestrator:
                     "outcome"
                 ] = "clarification_fanout"
 
-                return clarification(
+                return self._clarify(
+                    trace,
                     fanout_message(
                         violations=
                             fanout_violations,
@@ -392,6 +574,20 @@ class ResearchAgentOrchestrator:
                             interpretation.graph_plan,
                     )
                 )
+
+            # Identity resolution is outside the repair loop: ambiguity
+            # must never be repaired by dropping a customer filter.
+            blocked = self._resolve_entities(
+                interpretation=interpretation,
+                plan=interpretation.query_plan,
+                selections={},
+                caller=caller,
+                repaired=trace.fields["attempts"] > 1,
+                trace=trace,
+            )
+
+            if blocked is not None:
+                return blocked
 
             # ==================================================
             # 8-13. Deterministic SQL, execution and answer
@@ -425,6 +621,183 @@ class ResearchAgentOrchestrator:
 
             return answer
 
+    def resume(
+        self,
+        response: ClarificationResponse,
+        caller: CallerContext,
+    ) -> AnswerResponse:
+        """Continue a clarification within a fresh request deadline."""
+
+        with request_deadline(self._request_timeout_seconds):
+            return self._resume(response, caller)
+
+    def _resume(
+        self,
+        response: ClarificationResponse,
+        caller: CallerContext,
+    ) -> AnswerResponse:
+        """
+        Continue an entity clarification with the caller's choice.
+
+        The original measures, filters and scope are reused; no LLM call
+        is made. The store enforces caller binding, expiry and single use;
+        the guard re-checks the chosen record against the current scope.
+        """
+
+        if self._clarification_store is None:
+
+            raise ValueError(
+                "Clarification selection is not enabled."
+            )
+
+        with PerfTrace(
+            event="FLOWONE_PERF",
+            id_field="request_id",
+            stage_order=self.PERF_STAGES,
+            logger=logger,
+            trace_id=request_id_var.get(),
+            fields={
+                "attempts": 0,
+                "outcome": None,
+            },
+        ) as trace:
+
+            with trace.stage("clarification_resume"):
+
+                selection = self._clarification_store.take(
+                    response,
+                    access=caller.access,
+                    conversation_id=caller.conversation_id,
+                )
+
+            pending = selection.payload
+            location, keys, label = selection.value
+            chosen_labels = (*pending.chosen_labels, label)
+
+            blocked = self._resolve_entities(
+                interpretation=pending.interpretation,
+                plan=pending.plan,
+                selections={**pending.selections, location: keys},
+                caller=caller,
+                repaired=pending.repaired,
+                trace=trace,
+                chosen_labels=chosen_labels,
+            )
+
+            if blocked is not None:
+                return blocked
+
+            answer = self._execute(
+                interpretation=pending.interpretation,
+                trace=trace,
+                chosen_labels=chosen_labels,
+            )
+
+            if pending.repaired:
+                answer.warnings.append(REPAIR_WARNING)
+
+            trace.fields["outcome"] = "answered_after_clarification"
+
+            return answer
+
+    def _clarify(
+        self,
+        trace: PerfTrace,
+        message: str,
+    ) -> AnswerResponse:
+        """Clarification tagged with why it was returned (trace outcome)."""
+
+        answer = clarification(message)
+
+        answer._outcome = trace.fields.get("outcome")
+
+        return answer
+
+    def _resolve_entities(
+        self,
+        interpretation: _Interpretation,
+        plan: QueryPlan,
+        selections: dict,
+        caller: CallerContext | None,
+        repaired: bool,
+        trace: PerfTrace,
+        chosen_labels: tuple[str, ...] = (),
+    ) -> AnswerResponse | None:
+        """
+        Pin named entities in place, or return the clarification to send.
+
+        Choices are offered only to an identified caller, because a choice
+        must be bound to who received it. Anyone else gets text guidance.
+        """
+
+        # Exact text conditions are checked against stored values
+        # first ("open" -> "OPEN"; "unpaid" -> clarification), so
+        # an unknown value never answers 0 with confidence.
+        if self._value_domain_guard is not None:
+
+            with trace.stage("value_domain_guard"):
+
+                domain = self._value_domain_guard.resolve(plan)
+
+            if domain.clarification is not None:
+
+                trace.fields["outcome"] = "clarification_value"
+
+                return self._clarify(trace, domain.clarification)
+
+            plan = domain.plan
+
+        if self._entity_match_guard is None:
+            interpretation.query_plan = plan
+            return None
+
+        offer_choices = (
+            caller is not None
+            and self._clarification_store is not None
+        )
+
+        with trace.stage("entity_match_guard"):
+
+            match = self._entity_match_guard.resolve(
+                plan,
+                selections=selections,
+                list_choices=offer_choices,
+            )
+
+        if match.clarification is None:
+            interpretation.query_plan = match.plan
+            return None
+
+        trace.fields["outcome"] = "clarification_entity"
+
+        if not (offer_choices and match.candidates):
+            return self._clarify(trace, match.clarification)
+
+        prompt = self._clarification_store.create(
+            access=caller.access,
+            conversation_id=caller.conversation_id,
+            question=ENTITY_CHOICE_QUESTION,
+            reason="ambiguous_entity",
+            choices=[
+                ClarificationChoice(c.label, (match.location, c.keys, c.label))
+                for c in match.candidates
+            ],
+            payload=_PendingEntity(
+                interpretation=interpretation,
+                plan=plan,
+                selections=dict(selections),
+                repaired=repaired,
+                chosen_labels=chosen_labels,
+            ),
+        )
+
+        answer = self._clarify(trace, prompt.question)
+
+        # Labels and opaque IDs only; record keys stay in the store.
+        answer.data = prompt.model_dump(mode="json")
+
+        return answer
+
     # ======================================================
     # Interpretation + repair loop
     # ======================================================
@@ -455,6 +828,9 @@ class ResearchAgentOrchestrator:
 
         while True:
 
+            # No new LLM attempt once the question's time is up.
+            check_deadline()
+
             trace.fields[
                 "attempts"
             ] += 1
@@ -478,7 +854,10 @@ class ResearchAgentOrchestrator:
                         trace,
                 )
 
-            except UnsupportedQuestionError as exc:
+            except (
+                UnsupportedQuestionError,
+                UnsupportedPredicateError,
+            ) as exc:
 
                 logger.info(
                     "FLOWONE_UNSUPPORTED request_id=%s "
@@ -492,8 +871,13 @@ class ResearchAgentOrchestrator:
                     "outcome"
                 ] = "clarification_unsupported"
 
-                return clarification(
-                    UNSUPPORTED_MESSAGE
+                # Predicate messages are authored for users; other
+                # capability errors may carry internal detail.
+                return self._clarify(
+                    trace,
+                    str(exc)
+                    if isinstance(exc, UnsupportedPredicateError)
+                    else UNSUPPORTED_MESSAGE
                 )
 
             except ValueError as exc:
@@ -542,7 +926,8 @@ class ResearchAgentOrchestrator:
                         else "clarification_unresolved"
                     )
 
-                    return clarification(
+                    return self._clarify(
+                        trace,
                         unresolved_message(
                             state
                         )
@@ -762,12 +1147,15 @@ class ResearchAgentOrchestrator:
         self,
         interpretation: "_Interpretation",
         trace: PerfTrace,
+        chosen_labels: tuple[str, ...] = (),
     ) -> AnswerResponse:
         """
         Stages 8-13. Failures here are deterministic
         (compiler, validator, guardrails, database) and are
         never retried through the LLM.
         """
+
+        check_deadline()
 
         query_plan = (
             interpretation.query_plan
@@ -891,6 +1279,9 @@ class ResearchAgentOrchestrator:
 
                     result=
                         result,
+
+                    chosen_labels=
+                        chosen_labels,
                 )
             )
 

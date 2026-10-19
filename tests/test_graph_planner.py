@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
 from database.neo4j import Neo4jClient
 from nlu.models import QuestionAnalysis
 from ontology.ontology_service import OntologyService

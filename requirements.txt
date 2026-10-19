@@ -12,5 +12,17 @@ pydantic
 neo4j
 psycopg[binary]
 psycopg-pool
+tzdata
+PyJWT[crypto]
 pytest
 openai
+# File uploads (FastAPI multipart forms), Step 8
+python-multipart
+# Local portable packages (install order matters: contracts first)
+-e ./packages/hybrid_contracts
+-e ./packages/tenant_scope
+-e ./packages/clarification_state
+-e ./packages/trusted_identity
+-e ./packages/document_ingestion
+-e ./packages/document_retrieval
+-e ./packages/question_router

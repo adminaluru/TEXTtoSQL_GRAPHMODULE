@@ -1,0 +1,7 @@
+{
+  "_decision": "D-003: clarification choices show the record name and its legal entity. Related labels must be reachable by one confirmed many-to-one ontology join. Move into ontology metadata once label roles exist there.",
+  "public.erp_customer_details": [
+    {"column": "name"},
+    {"table": "public.d_legalentity", "column": "name"}
+  ]
+}

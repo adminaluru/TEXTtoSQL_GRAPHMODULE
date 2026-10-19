@@ -1,0 +1,80 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    # Database-free tests only. Tests marked "integration" need the live
+    # PostgreSQL and Neo4j Golden Data and are deselected here until a
+    # dedicated test store exists (action A1.3).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # config.py validates these at import time. They are deliberately
+    # unusable placeholders (closed port, fake credentials), not secrets:
+    # any test that tries to connect fails fast instead of reaching a
+    # real database.
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "1"
+      POSTGRES_DB: ci_unused
+      POSTGRES_USER: ci_unused
+      POSTGRES_PASSWORD: ci_unused
+      NEO4J_URI: bolt://127.0.0.1:1
+      NEO4J_USER: ci_unused
+      NEO4J_PASSWORD: ci_unused
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            constraints.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -c constraints.txt
+
+      - name: Database-free tests (app and portable packages)
+        run: python -m pytest -m "not integration" -q
+
+      - name: Portable packages in isolation (no FlowOne app on sys.path)
+        run: |
+          for package in tenant_scope clarification_state trusted_identity document_ingestion document_retrieval question_router; do
+            (cd "packages/$package" && python -I -m pytest -q -p no:cacheprovider tests)
+          done
+
+  ui:
+    # Chat UI: type-check, unit tests (fake API, no backend), production build.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install exact locked versions
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Type-check and build
+        run: npm run build

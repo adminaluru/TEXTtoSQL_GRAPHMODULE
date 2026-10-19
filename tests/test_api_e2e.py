@@ -1,4 +1,7 @@
+import pytest
 from decimal import Decimal
+
+import psycopg
 
 from fastapi.testclient import (
     TestClient,
@@ -101,14 +104,15 @@ def build_e2e_agent(
 #
 # Temporary POC entity matching:
 #
-# Customer.name ILIKE '%Blue Prism%'
+# Customer.name ILIKE '%Blue Prism Technologies LE-1001%'
 #
 # Verified Golden Data:
 #
-# matching customers = 6
-# payment total      = 24000.00
+# matching customers = 1 (SYN-CUST-1001-01#527#1001)
+# payment total      = 4000.00
 # ==========================================================
 
+@pytest.mark.integration
 def test_api_e2e_total_payment_for_customer():
 
     structured_response = {
@@ -142,7 +146,7 @@ def test_api_e2e_total_payment_for_customer():
                     "customer name",
 
                 "value":
-                    "Blue Prism",
+                    "Blue Prism Technologies LE-1001",
             }
         ],
 
@@ -175,7 +179,7 @@ def test_api_e2e_total_payment_for_customer():
                     json={
                         "question":
                             "How much has "
-                            "Blue Prism paid?"
+                            "Blue Prism Technologies LE-1001 paid?"
                     },
                 )
             )
@@ -237,8 +241,8 @@ def test_api_e2e_total_payment_for_customer():
         # Decimal(str(...)) keeps this assertion stable
         # whether FastAPI serializes the decimal as:
         #
-        # 24000.0
-        # "24000.00"
+        # 4000.0
+        # "4000.00"
         # etc.
         # ==================================================
 
@@ -254,7 +258,7 @@ def test_api_e2e_total_payment_for_customer():
             )
             ==
             Decimal(
-                "24000.00"
+                "4000.00"
             )
         )
 
@@ -266,11 +270,11 @@ def test_api_e2e_total_payment_for_customer():
             body["answer"]
             ==
             "The total payment amount "
-            "for Blue Prism is 24000.00."
+            "for Blue Prism Technologies LE-1001 is 4000.00 USD."
         )
 
         assert (
-            "Blue Prism"
+            "Blue Prism Technologies LE-1001"
             in body["answer"]
         )
 
@@ -309,14 +313,15 @@ def test_api_e2e_total_payment_for_customer():
 #
 # Temporary POC entity matching:
 #
-# Customer.name ILIKE '%Blue Prism%'
+# Customer.name ILIKE '%Blue Prism Technologies LE-1001%'
 #
 # Verified Golden Data:
 #
-# matching customers = 6
-# invoice count      = 24
+# matching customers = 1 (SYN-CUST-1001-01#527#1001)
+# invoice count      = 4
 # ==========================================================
 
+@pytest.mark.integration
 def test_api_e2e_count_invoices_for_customer():
 
     structured_response = {
@@ -360,7 +365,7 @@ def test_api_e2e_count_invoices_for_customer():
                     "customer name",
 
                 "value":
-                    "Blue Prism",
+                    "Blue Prism Technologies LE-1001",
             }
         ],
 
@@ -393,7 +398,7 @@ def test_api_e2e_count_invoices_for_customer():
                     json={
                         "question":
                             "How many invoices "
-                            "does Blue Prism have?"
+                            "does Blue Prism Technologies LE-1001 have?"
                     },
                 )
             )
@@ -461,7 +466,7 @@ def test_api_e2e_count_invoices_for_customer():
 
         assert (
             body["data"]["value"]
-            == 24
+            == 4
         )
 
         # ==================================================
@@ -472,7 +477,7 @@ def test_api_e2e_count_invoices_for_customer():
             body["answer"]
             ==
             "The count of invoice records "
-            "for Blue Prism is 24."
+            "for Blue Prism Technologies LE-1001 is 4."
         )
 
         # Physical identity must not leak into the answer.
@@ -572,6 +577,7 @@ def test_api_e2e_health():
 # answer while the second request skips Neo4j lookups.
 # ==========================================================
 
+@pytest.mark.integration
 def test_api_e2e_cached_ontology_and_pooled_postgres():
 
     import time
@@ -592,7 +598,7 @@ def test_api_e2e_cached_ontology_and_pooled_postgres():
             {
                 "concept": "Customer",
                 "attribute": "customer name",
-                "value": "Blue Prism",
+                "value": "Blue Prism Technologies LE-1001",
             }
         ],
         "aggregation": "SUM",
@@ -645,7 +651,7 @@ def test_api_e2e_cached_ontology_and_pooled_postgres():
 
                 response = client.post(
                     "/ask",
-                    json={"question": "How much has Blue Prism paid?"},
+                    json={"question": "How much has Blue Prism Technologies LE-1001 paid?"},
                 )
 
                 durations.append(time.perf_counter() - started)
@@ -656,7 +662,7 @@ def test_api_e2e_cached_ontology_and_pooled_postgres():
                     Decimal(str(response.json()["data"]["value"]))
                 )
 
-        assert values == [Decimal("24000.00")] * 3
+        assert values == [Decimal("4000.00")] * 3
 
         # First request populates the cache; later requests
         # make no Neo4j round trips at all.
@@ -664,14 +670,20 @@ def test_api_e2e_cached_ontology_and_pooled_postgres():
         assert lookup_counts[1:] == [0, 0]
 
         # Read-only/timeout settings must not leak into
-        # pooled connections.
-        with pool.connection() as conn:
-            row = conn.execute(
-                "SELECT current_setting('transaction_read_only'), "
-                "current_setting('statement_timeout')"
-            ).fetchone()
+        # pooled connections: they return to the login's own
+        # defaults (a read-only login defaults to read-only).
+        session_defaults = (
+            "SELECT current_setting('transaction_read_only'), "
+            "current_setting('statement_timeout')"
+        )
 
-        assert row[0] == "off"
+        with pool.connection() as conn:
+            row = conn.execute(session_defaults).fetchone()
+
+        with psycopg.connect(settings.postgres_dsn) as fresh:
+            expected = fresh.execute(session_defaults).fetchone()
+
+        assert row == expected
         assert row[1] != "5s"
 
         print(
@@ -700,6 +712,7 @@ def test_api_e2e_cached_ontology_and_pooled_postgres():
 # answered wrongly.
 # ==========================================================
 
+@pytest.mark.integration
 def test_api_e2e_blocks_sum_inflated_by_line_items():
 
     agent, neo4j = build_e2e_agent(

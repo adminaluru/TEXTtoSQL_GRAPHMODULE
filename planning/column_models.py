@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -35,7 +37,12 @@ class ResolvedFilterColumn(BaseModel):
 
     operator: str = "="
 
-    value: str
+    # Text, number, or a datetime bound for date periods (D-007).
+    value: Any
+
+    # User-facing statement of how the condition was applied,
+    # e.g. the exact period a date condition covers.
+    note: str | None = None
 
     score: int
 

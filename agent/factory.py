@@ -1,3 +1,11 @@
+from clarification_state import PendingSelectionStore
+from planning.currency_split import CurrencySource, CurrencySplitter, load_currency_sources
+from planning.tenant_plan_scope import TenantPlanScope
+from planning.empty_groups import EmptyGroupPolicy
+from planning.missing_values import MissingValuePolicy
+from planning.probe import ProbeRunner
+from planning.value_domain_guard import ValueDomainGuard
+from planning.entity_match_guard import ChoiceLabel, EntityMatchGuard, EntityScopePolicy
 from ai.interfaces.chat_model import (
     ChatModel,
 )
@@ -84,6 +92,11 @@ def build_research_agent(
     ontology_cache: TTLCache | None = None,
     max_repair_attempts: int = 2,
     repair_budget_seconds: float = 30.0,
+    entity_scope_policy: EntityScopePolicy | None = None,
+    entity_choice_labels: dict[str, list[ChoiceLabel]] | None = None,
+    clarification_store: PendingSelectionStore | None = None,
+    currency_sources: dict[str, CurrencySource] | None = None,
+    request_timeout_seconds: float | None = None,
 ) -> ResearchAgentOrchestrator:
     """
     Build the complete Research Agent dependency graph.
@@ -341,7 +354,47 @@ def build_research_agent(
     # 14. Assemble Research Agent
     # ======================================================
 
+    entity_match_guard = EntityMatchGuard(
+        ontology, sql_compiler, sql_validator, sql_guardrails, executor,
+        scope_policy=entity_scope_policy,
+        choice_labels=entity_choice_labels,
+    )
+
     return ResearchAgentOrchestrator(
+        entity_match_guard=entity_match_guard,
+
+        clarification_store=clarification_store,
+
+        request_timeout_seconds=request_timeout_seconds,
+
+        # Whenever a caller's company scope exists, EVERY table read is
+        # limited to that company (not only named records).
+        tenant_plan_scope=(
+            TenantPlanScope(ontology, entity_scope_policy)
+            if entity_scope_policy is not None
+            else None
+        ),
+
+        # Always on (D-004): amounts are never combined across currencies.
+        currency_splitter=CurrencySplitter(
+            ontology,
+            currency_sources
+            if currency_sources is not None
+            else load_currency_sources(),
+        ),
+
+        # Always on (D-005): groups without records are listed with 0.
+        empty_group_policy=EmptyGroupPolicy(),
+
+        # Always on (D-006): totals say how many records had no value.
+        missing_value_policy=MissingValuePolicy(ontology),
+
+        value_domain_guard=ValueDomainGuard(
+            ontology,
+            ProbeRunner(sql_compiler, sql_validator, sql_guardrails, executor),
+            scope_policy=entity_scope_policy,
+        ),
+
         question_analyzer=
             question_analyzer,
 

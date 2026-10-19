@@ -44,7 +44,9 @@ class ResultAnalyzer:
             execution
         )
 
-        warnings: list[str] = []
+        warnings: list[str] = list(
+            plan.result_notes
+        )
 
         if execution.truncated:
 
@@ -96,11 +98,21 @@ class ResultAnalyzer:
         # }
         # ==================================================
 
+        # A currency split (D-004) adds one currency projection and
+        # grouping; one currency row is still one logical value.
+        currency_alias = plan.currency_alias
+
+        other_projections = [
+            p for p in plan.projections
+            if p.alias != currency_alias
+        ]
+
         if (
             len(plan.aggregations) == 1
             and execution.row_count == 1
-            and not plan.projections
-            and not plan.groupings
+            and not other_projections
+            and len(plan.groupings)
+            == (1 if currency_alias else 0)
         ):
 
             aggregation = (
@@ -132,6 +144,22 @@ class ResultAnalyzer:
 
                 scalar_value=row[alias],
 
+                currency_alias=currency_alias,
+
+                missing_alias=aggregation.missing_alias,
+
+                missing_count=(
+                    row.get(aggregation.missing_alias)
+                    if aggregation.missing_alias
+                    else None
+                ),
+
+                scalar_currency=(
+                    row.get(currency_alias)
+                    if currency_alias
+                    else None
+                ),
+
                 rows=execution.rows,
 
                 warnings=warnings,
@@ -155,6 +183,19 @@ class ResultAnalyzer:
         return ResultAnalysis(
             result_type="tabular",
 
+            currency_alias=plan.currency_alias,
+
+            missing_alias=(
+                plan.aggregations[0].missing_alias
+                if len(plan.aggregations) == 1
+                else None
+            ),
+
+            missing_count=self._sum_missing(
+                plan,
+                execution.rows,
+            ),
+
             columns=execution.columns,
 
             row_count=execution.row_count,
@@ -173,6 +214,27 @@ class ResultAnalyzer:
     # ======================================================
     # Internal validation
     # ======================================================
+
+    @staticmethod
+    def _sum_missing(
+        plan: QueryPlan,
+        rows: list[dict],
+    ) -> int | None:
+
+        aliases = [
+            a.missing_alias
+            for a in plan.aggregations
+            if a.missing_alias
+        ]
+
+        if not aliases:
+            return None
+
+        return sum(
+            row.get(alias) or 0
+            for row in rows
+            for alias in aliases
+        )
 
     @staticmethod
     def _validate_execution_result(

@@ -1,0 +1,7 @@
+{
+  "_decision": "D-004: amounts are never combined across currencies. A row's own currency column is authoritative; payments and claims take the currency of their linked invoice. Tables with financial measures and no entry here are refused for SUM/AVG/MIN/MAX.",
+  "public.erp_invoice_details": {"column": "currency_type"},
+  "public.erp_inv_adjustments": {"column": "currency_type"},
+  "public.erp_payment_receipt": {"via": "public.erp_invoice_details"},
+  "public.d_claim_invoice": {"via": "public.erp_invoice_details"}
+}

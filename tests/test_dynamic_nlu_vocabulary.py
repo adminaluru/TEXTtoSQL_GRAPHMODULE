@@ -16,6 +16,8 @@ from ontology.concept_catalog import (
     ConceptCatalogService,
 )
 
+pytestmark = pytest.mark.integration
+
 
 def test_dynamic_ontology_catalog_is_loaded():
 

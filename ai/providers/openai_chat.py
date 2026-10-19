@@ -1,6 +1,11 @@
 import logging
 import os
 
+from observability.deadline import (
+    DeadlineExceeded,
+    cap_timeout,
+    remaining_seconds,
+)
 from typing import Any
 
 from openai import OpenAI
@@ -89,6 +94,8 @@ class OpenAIChatModel(ChatModel):
         # An explicit timeout bounds how long a slow
         # provider can hold a worker thread; the SDK
         # default is several minutes.
+        self._timeout_seconds = timeout_seconds
+
         self._client = (
             client
             or OpenAI(
@@ -160,17 +167,25 @@ class OpenAIChatModel(ChatModel):
 
             with trace.stage("api_call"):
 
+                # Never longer than the time left for the whole question.
+                call_timeout = cap_timeout(self._timeout_seconds)
+
                 try:
 
                     response = (
                         self._client
                         .responses
                         .create(
-                            **kwargs
+                            **kwargs,
+                            timeout=call_timeout,
                         )
                     )
 
                 except Exception as exc:
+
+                    remaining = remaining_seconds()
+                    if remaining is not None and remaining <= 0:
+                        raise DeadlineExceeded() from exc
 
                     raise RuntimeError(
                         "OpenAI text generation failed."
@@ -308,17 +323,25 @@ class OpenAIChatModel(ChatModel):
 
             with trace.stage("api_parse_call"):
 
+                # Never longer than the time left for the whole question.
+                call_timeout = cap_timeout(self._timeout_seconds)
+
                 try:
 
                     response = (
                         self._client
                         .responses
                         .parse(
-                            **kwargs
+                            **kwargs,
+                            timeout=call_timeout,
                         )
                     )
 
                 except Exception as exc:
+
+                    remaining = remaining_seconds()
+                    if remaining is not None and remaining <= 0:
+                        raise DeadlineExceeded() from exc
 
                     raise RuntimeError(
                         "OpenAI structured generation "

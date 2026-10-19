@@ -20,4 +20,14 @@ app.py.bak
 
 FlowOne GQ doc.xlsx
 
+# Uploaded documents and their local index (Step 8)
+data/
+
 *.bak
+*.egg-info/
+
+# UI build artefacts
+ui/node_modules/
+ui/dist/
+ui/.env.local
+ui/.env.*.local

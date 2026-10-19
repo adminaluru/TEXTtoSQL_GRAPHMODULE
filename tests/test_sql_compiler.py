@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
 from database.neo4j import (
     Neo4jClient,
 )

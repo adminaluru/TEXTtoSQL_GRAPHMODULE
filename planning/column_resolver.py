@@ -1,6 +1,8 @@
 import re
 
+from datetime import date
 from difflib import SequenceMatcher
+from typing import Callable
 
 from nlu.models import QuestionAnalysis
 
@@ -20,7 +22,16 @@ from planning.column_models import (
     ResolvedProjectionColumn,
 )
 
+from planning.date_period import business_today, parse_period
+from planning.errors import UnsupportedPredicateError
+
 from planning.graph_models import GraphPlan
+
+
+DATE_FILTER_UNSUPPORTED = (
+    "Date and time conditions are not supported yet, so I can't "
+    "answer for a specific date or period."
+)
 
 
 class ColumnResolver:
@@ -102,11 +113,16 @@ class ColumnResolver:
     def __init__(
         self,
         ontology_service: OntologyService,
+        today: Callable[[], date] = business_today,
     ) -> None:
 
         self._ontology = (
             ontology_service
         )
+
+        # "Today" in the business time zone (D-007), injectable
+        # so relative periods are testable.
+        self._today = today
 
     # ======================================================
     # Public API
@@ -188,6 +204,50 @@ class ColumnResolver:
                     f"'{entity.concept}'. "
                     f"Best score: {score}"
                 )
+
+            # ==================================================
+            # Date / time condition -> exact period (D-007)
+            #
+            # start <= column < day after end, as two bound
+            # parameters. Unclear periods are refused, never
+            # guessed and never dropped.
+            # ==================================================
+
+            if self._is_temporal(column):
+
+                period = parse_period(
+                    entity.value,
+                    self._today(),
+                )
+
+                note = (
+                    f"{entity.attribute.strip().capitalize()}: "
+                    f"{period.describe()}."
+                )
+
+                for operator, bound in (
+                    (">=", period.start_at),
+                    ("<", period.end_before),
+                ):
+
+                    if bound is None:
+                        continue
+
+                    resolved_filters.append(
+                        ResolvedFilterColumn(
+                            concept=entity.concept,
+                            business_attribute=entity.attribute,
+                            table_key=table.key,
+                            column_key=column.key,
+                            column_name=column.name,
+                            operator=operator,
+                            value=bound,
+                            score=score,
+                            note=note,
+                        )
+                    )
+
+                continue
 
             # ==================================================
             # Temporary POC filter matching policy
@@ -801,6 +861,32 @@ class ColumnResolver:
     # Temporary POC filter matching
     # ======================================================
 
+    TEMPORAL_TYPES = (
+        "TIMESTAMP",
+        "DATETIME",
+        "DATE",
+        "TIME",
+    )
+
+    @classmethod
+    def _is_temporal(
+        cls,
+        column,
+    ) -> bool:
+
+        data_type = (
+            getattr(column, "data_type", None) or ""
+        ).upper()
+
+        category = (
+            getattr(column, "category", None) or ""
+        ).lower()
+
+        return (
+            category == "timestamp"
+            or data_type.startswith(cls.TEMPORAL_TYPES)
+        )
+
     @classmethod
     def _resolve_filter_match(
         cls,
@@ -812,7 +898,7 @@ class ColumnResolver:
         object,
     ]:
         """
-        Temporary matching behavior for POC Golden Data.
+        Literal substring matching for name-like filters.
 
         Name-like STRING filters:
 
@@ -843,6 +929,16 @@ class ColumnResolver:
         Proper EntityResolver / ambiguity handling will
         replace this method later.
         """
+
+        # A date/time condition is a period, not an exact
+        # instant: equality against a timestamp silently matches
+        # (almost) nothing. Refuse until date ranges have approved
+        # boundary and time-zone semantics.
+        if cls._is_temporal(column):
+
+            raise UnsupportedPredicateError(
+                DATE_FILTER_UNSUPPORTED
+            )
 
         # Non-string values remain exact.
         if not isinstance(
@@ -889,9 +985,22 @@ class ColumnResolver:
                 value.strip()
             )
 
+            if not cleaned_value:
+                raise ValueError("Name filter cannot be blank.")
+
+            # PostgreSQL LIKE/ILIKE uses backslash as its default
+            # escape character. Escape it first, then literal wildcards.
+            # Values remain bound SQL parameters, never SQL text.
+            escaped_value = (
+                cleaned_value
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+            )
+
             return (
                 "ILIKE",
-                f"%{cleaned_value}%",
+                f"%{escaped_value}%",
             )
 
         return (
@@ -974,6 +1083,15 @@ class ColumnResolver:
 
         if len(tied) > 1:
 
+            winner = self._prefer_phrase_as_given(
+                attribute=attribute,
+                contenders=tied,
+                prefer_measure=prefer_measure,
+            )
+
+            if winner is not None:
+                return winner
+
             candidates = [
                 item[1].key
                 for item
@@ -1015,6 +1133,21 @@ class ColumnResolver:
                 < self.MIN_SCORE_MARGIN
             ):
 
+                winner = self._prefer_phrase_as_given(
+                    attribute=attribute,
+                    contenders=[
+                        item
+                        for item in ranked
+                        if item[0] >= threshold
+                        and best_score - item[0]
+                        < self.MIN_SCORE_MARGIN
+                    ],
+                    prefer_measure=prefer_measure,
+                )
+
+                if winner is not None:
+                    return winner
+
                 candidates = [
                     ranked[0][1].key,
                     ranked[1][1].key,
@@ -1035,6 +1168,52 @@ class ColumnResolver:
             best_column,
             best_score,
         )
+
+    def _prefer_phrase_as_given(
+        self,
+        attribute: str,
+        contenders: list[tuple[int, ColumnMetadata]],
+        prefer_measure: bool,
+    ) -> tuple[ColumnMetadata, int] | None:
+        """
+        Break a near-tie using the attribute exactly as given.
+
+        Variants such as "status" (concept prefix stripped from
+        "invoice status") can match several columns equally. The
+        phrase the user actually used may still clearly favour one
+        ("Invoice lifecycle status"). It decides only with the same
+        margin required elsewhere; otherwise the tie stands.
+        """
+
+        phrase = self._normalize(attribute)
+
+        scored = sorted(
+            (
+                (
+                    self._score_column(
+                        variants={phrase},
+                        column=column,
+                        prefer_measure=prefer_measure,
+                    ),
+                    score,
+                    column,
+                )
+                for score, column in contenders
+            ),
+            key=lambda item: (-item[0], item[2].name),
+        )
+
+        if (
+            len(scored) > 1
+            and scored[0][0] - scored[1][0]
+            >= self.MIN_SCORE_MARGIN
+        ):
+            return (
+                scored[0][2],
+                scored[0][1],
+            )
+
+        return None
 
     # ======================================================
     # Attribute variants
@@ -1188,7 +1367,13 @@ class ColumnResolver:
         # Evaluate every generated business variant
         # ==================================================
 
+        # Each variant is scored on its own (best name match plus its
+        # own description evidence) and the best variant wins. A
+        # running total across variants made the score depend on set
+        # iteration order, i.e. on the process hash seed.
         for requested in variants:
+
+            variant_score = 0
 
             requested_tokens = set(
                 requested.split()
@@ -1341,8 +1526,8 @@ class ColumnResolver:
                         overlap_score,
                     )
 
-                best_lexical_score = max(
-                    best_lexical_score,
+                variant_score = max(
+                    variant_score,
                     score,
                 )
 
@@ -1358,7 +1543,7 @@ class ColumnResolver:
                 )
             ):
 
-                best_lexical_score += 18
+                variant_score += 18
 
             else:
 
@@ -1378,7 +1563,12 @@ class ColumnResolver:
                     >= 0.75
                 ):
 
-                    best_lexical_score += 10
+                    variant_score += 10
+
+            best_lexical_score = max(
+                best_lexical_score,
+                variant_score,
+            )
 
         score = (
             best_lexical_score

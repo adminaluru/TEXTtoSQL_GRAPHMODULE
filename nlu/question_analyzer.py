@@ -400,6 +400,12 @@ Each entity must contain:
 
 The attribute must remain business-level terminology.
 
+Never omit a condition from the question. Include every
+condition (names, dates or periods, statuses, amounts,
+comparisons) as an entity, using the business attribute
+it applies to, even if it may not be supported. Leaving a
+condition out would answer a different question.
+
 
 aggregation
 

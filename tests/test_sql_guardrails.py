@@ -1,3 +1,4 @@
+import pytest
 from database.neo4j import (
     Neo4jClient,
 )
@@ -65,6 +66,7 @@ from sql_validator.validator import (
 # structural validation and execution guardrails.
 # ==========================================================
 
+@pytest.mark.integration
 def test_customer_payment_query_passes_guardrails():
 
     neo4j = Neo4jClient()

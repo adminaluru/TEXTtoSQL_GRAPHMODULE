@@ -109,19 +109,23 @@ class DeterministicSQLCompiler:
             )
         )
 
-        join_clauses = (
+        join_clauses, join_parameters = (
             self._compile_joins(
                 plan=plan,
                 aliases=aliases,
             )
         )
 
-        filter_where_clause, parameters = (
+        filter_where_clause, filter_parameters = (
             self._compile_filters(
                 filters=plan.filters,
                 aliases=aliases,
             )
         )
+
+        # Parameters follow the order of placeholders in the SQL:
+        # JOIN ... ON conditions come before WHERE.
+        parameters = join_parameters + filter_parameters
 
         (
             existence_clauses,
@@ -398,13 +402,50 @@ class DeterministicSQLCompiler:
             aggregation.table
         ]
 
-        return (
+        expression = (
             f"{function}("
             f"{table_alias}."
             f"{aggregation.column}"
-            f") AS "
+            f")"
+        )
+
+        # A group with no records totals / counts 0 (D-005). AVG,
+        # MIN and MAX of no records have no value; never invent 0.
+        if aggregation.empty_as_zero:
+
+            if function not in {"SUM", "COUNT"}:
+                raise ValueError(
+                    "empty_as_zero is only valid for SUM and COUNT."
+                )
+
+            expression = f"COALESCE({expression}, 0)"
+
+        compiled = (
+            f"{expression} AS "
             f"{aggregation.alias}"
         )
+
+        # Measure records without a value (D-006). Counting the
+        # measure table's key ignores LEFT JOIN placeholder rows.
+        if aggregation.missing_alias:
+
+            self._validate_identifier(
+                aggregation.missing_key_column or ""
+            )
+
+            self._validate_identifier(
+                aggregation.missing_alias
+            )
+
+            compiled += (
+                f",\n    COUNT({table_alias}."
+                f"{aggregation.missing_key_column}) "
+                f"FILTER (WHERE {table_alias}."
+                f"{aggregation.column} IS NULL) AS "
+                f"{aggregation.missing_alias}"
+            )
+
+        return compiled
 
     # ======================================================
     # FROM
@@ -431,7 +472,7 @@ class DeterministicSQLCompiler:
         self,
         plan: QueryPlan,
         aliases: dict[str, str],
-    ) -> list[str]:
+    ) -> tuple[list[str], list[Any]]:
         """
         Build joins in connectivity order.
 
@@ -454,6 +495,8 @@ class DeterministicSQLCompiler:
                 ON t1.customer_id = t0.id
         """
 
+        join_parameters: list[Any] = []
+
         if len(plan.tables) == 1:
             if plan.joins:
                 raise ValueError(
@@ -461,7 +504,7 @@ class DeterministicSQLCompiler:
                     "unexpectedly contains joins."
                 )
 
-            return []
+            return [], join_parameters
 
         if not plan.joins:
             raise ValueError(
@@ -593,6 +636,21 @@ class DeterministicSQLCompiler:
                     f"{join.right_column}"
                 )
 
+                # Extra ON conditions apply only to the table this
+                # join adds, and only as bound equality parameters.
+                for condition in join.on_filters:
+                    if condition.table != new_table or condition.operator != "=":
+                        raise ValueError(
+                            "Join conditions must be equality filters "
+                            "on the joined table."
+                        )
+                    self._validate_identifier(condition.column)
+                    clause += (
+                        f"\n   AND {new_alias}."
+                        f"{condition.column} = %s"
+                    )
+                    join_parameters.append(condition.value)
+
                 clauses.append(
                     clause
                 )
@@ -635,7 +693,7 @@ class DeterministicSQLCompiler:
                 f"tables: {sorted(missing_tables)}"
             )
 
-        return clauses
+        return clauses, join_parameters
 
     def _validate_join(
         self,
@@ -1176,14 +1234,15 @@ class DeterministicSQLCompiler:
                     and right_known
                 ):
 
-                    # Already connected by an earlier path
-                    # edge. Skip duplicate/redundant edge.
-                    remaining.remove(
-                        join
+                    # Both aliases exist, but the edge can still carry
+                    # a required additional predicate. Never discard it.
+                    # Composite/cyclic paths require explicit support;
+                    # moving LEFT JOIN predicates into WHERE can change
+                    # null-preserving semantics, so fail closed here.
+                    raise ValueError(
+                        "Existence path contains an unsupported "
+                        "additional predicate between connected tables."
                     )
-
-                    progress = True
-                    break
 
                 else:
                     continue

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowone-trusted-identity"
+version = "0.1.0"
+description = "Verify bearer tokens (dev HS256 or Entra ID / any OIDC JWKS) into an AccessContext"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7,<3",
+    "PyJWT[crypto]>=2.10,<3",
+    "flowone-hybrid-contracts>=0.3,<0.4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

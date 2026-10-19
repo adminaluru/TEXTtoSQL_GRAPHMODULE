@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowone-document-ingestion"
+version = "0.1.0"
+description = "Validate, extract and split Word, PDF and Excel files into located passages"
+requires-python = ">=3.11"
+dependencies = [
+    "flowone-hybrid-contracts>=0.3,<0.4",
+    "python-docx>=1.1,<2",
+    "pypdf>=5,<6",
+    "openpyxl>=3.1,<4",
+    "defusedxml>=0.7,<1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

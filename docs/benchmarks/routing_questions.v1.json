@@ -1,0 +1,40 @@
+{
+  "_purpose": "Routing benchmark for Step 11 (decision D-011). Each question has the minimal set of sources that answers it. 'rules' says whether the fixed rules must decide it alone (clear) or may ask the AI classifier (unsure). Version this file: change a label only with a reason in TEST_EVIDENCE.md.",
+  "version": "1",
+  "created": "2026-10-16",
+  "questions": [
+    {"id": "R01", "source": "GQ001", "question": "How much has Blue Prism paid?", "expected": ["database"], "rules": "clear"},
+    {"id": "R02", "source": "GQ002", "question": "How many invoices does Blue Prism have?", "expected": ["database"], "rules": "clear"},
+    {"id": "R03", "source": "GQ003", "question": "Show invoices for Blue Prism.", "expected": ["database"], "rules": "clear"},
+    {"id": "R04", "source": "GQ004", "question": "What is the total payment amount by customer?", "expected": ["database"], "rules": "clear"},
+    {"id": "R05", "source": "GQ005", "question": "What is the total claim amount for Blue Prism?", "expected": ["database"], "rules": "clear"},
+    {"id": "R06", "source": "GQ006", "question": "Which invoices have broken promises to pay?", "expected": ["database"], "rules": "clear"},
+    {"id": "R07", "source": "GQ007", "question": "What is the total invoice adjustment amount?", "expected": ["database"], "rules": "clear"},
+    {"id": "R08", "source": "GQ008", "question": "Show GST information for invoices.", "expected": ["database"], "rules": "clear"},
+    {"id": "R09", "source": "GQ009", "question": "Which customers have invoices with claims?", "expected": ["database"], "rules": "clear"},
+    {"id": "R10", "source": "GQ010", "question": "Which customers have both claims and broken promises?", "expected": ["database"], "rules": "clear"},
+    {"id": "R11", "source": "live UI", "question": "What is the total invoice amount?", "expected": ["database"], "rules": "clear"},
+    {"id": "R12", "source": "live UI", "question": "How many open invoices are there?", "expected": ["database"], "rules": "clear"},
+    {"id": "R13", "source": "live UI", "question": "What is the total payment amount in April 2026?", "expected": ["database"], "rules": "clear"},
+    {"id": "R14", "source": "new", "question": "What is the outstanding balance per customer?", "expected": ["database"], "rules": "clear"},
+    {"id": "R15", "source": "new", "question": "List overdue invoices", "expected": ["database"], "rules": "clear"},
+
+    {"id": "R16", "source": "new", "question": "What does our contract say about late payment fees?", "expected": ["documents"], "rules": "clear"},
+    {"id": "R17", "source": "new", "question": "What are the payment terms?", "expected": ["documents"], "rules": "clear"},
+    {"id": "R18", "source": "new", "question": "According to the agreement, when is payment due?", "expected": ["documents"], "rules": "clear"},
+    {"id": "R19", "source": "new", "question": "Which clause covers disputes?", "expected": ["documents"], "rules": "clear"},
+    {"id": "R20", "source": "new", "question": "What does the credit policy say about write-offs?", "expected": ["documents"], "rules": "clear"},
+    {"id": "R21", "source": "new", "question": "Summarise the collections procedure", "expected": ["documents"], "rules": "clear"},
+
+    {"id": "R22", "source": "new", "question": "What does the policy say about late fees, and how many invoices are overdue?", "expected": ["database", "documents"], "rules": "clear"},
+    {"id": "R23", "source": "new", "question": "How many claims are open and what does the dispute procedure require?", "expected": ["database", "documents"], "rules": "clear"},
+    {"id": "R24", "source": "new", "question": "What is the total overdue amount and what do our payment terms say about reminders?", "expected": ["database", "documents"], "rules": "clear"},
+
+    {"id": "R25", "source": "new", "question": "What is the late payment fee?", "expected": ["documents"], "rules": "unsure"},
+    {"id": "R26", "source": "new", "question": "When should we follow up with Blue Prism?", "expected": ["documents"], "rules": "unsure"},
+    {"id": "R27", "source": "new", "question": "Why was invoice INV-1001 adjusted?", "expected": ["database", "documents"], "rules": "unsure"},
+    {"id": "R28", "source": "new", "question": "Tell me about Blue Prism", "expected": ["database", "documents"], "rules": "unsure"},
+    {"id": "R29", "source": "new", "question": "Is a 2% monthly fee allowed?", "expected": ["documents"], "rules": "unsure"},
+    {"id": "R30", "source": "new", "question": "Who is responsible for approving write-offs?", "expected": ["documents"], "rules": "unsure"}
+  ]
+}

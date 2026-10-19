@@ -1,3 +1,4 @@
+import pytest
 from decimal import Decimal
 
 from ai.providers.mock_chat import (
@@ -95,18 +96,19 @@ def build_agent(
 #
 # Question:
 #
-#     How much has Blue Prism paid?
+#     How much has Blue Prism Technologies LE-1001 paid?
 #
 # Temporary POC entity matching:
 #
-#     Customer.name ILIKE '%Blue Prism%'
+#     Customer.name ILIKE '%Blue Prism Technologies LE-1001%'
 #
 # Verified PostgreSQL Golden Data:
 #
-#     matching customer records = 6
-#     payment total             = 24000.00
+#     matching customer records = 1 (SYN-CUST-1001-01#527#1001)
+#     payment total             = 4000.00
 # ==========================================================
 
+@pytest.mark.integration
 def test_research_agent_customer_payment_end_to_end():
 
     structured_response = {
@@ -147,7 +149,7 @@ def test_research_agent_customer_payment_end_to_end():
                     "customer name",
 
                 "value":
-                    "Blue Prism",
+                    "Blue Prism Technologies LE-1001",
             }
         ],
 
@@ -166,7 +168,7 @@ def test_research_agent_customer_payment_end_to_end():
         response = (
             agent.ask(
                 "How much has "
-                "Blue Prism paid?"
+                "Blue Prism Technologies LE-1001 paid?"
             )
         )
 
@@ -220,7 +222,7 @@ def test_research_agent_customer_payment_end_to_end():
             response.data["value"]
             ==
             Decimal(
-                "24000.00"
+                "4000.00"
             )
         )
 
@@ -232,11 +234,11 @@ def test_research_agent_customer_payment_end_to_end():
             response.answer
             ==
             "The total payment amount "
-            "for Blue Prism is 24000.00."
+            "for Blue Prism Technologies LE-1001 is 4000.00 USD."
         )
 
         assert (
-            "Blue Prism"
+            "Blue Prism Technologies LE-1001"
             in response.answer
         )
 
@@ -257,7 +259,7 @@ def test_research_agent_customer_payment_end_to_end():
 #
 # Question:
 #
-#     How many invoices does Blue Prism have?
+#     How many invoices does Blue Prism Technologies LE-1001 have?
 #
 # Raw LLM wording deliberately contains:
 #
@@ -278,14 +280,15 @@ def test_research_agent_customer_payment_end_to_end():
 #
 # Temporary POC entity matching:
 #
-#     Customer.name ILIKE '%Blue Prism%'
+#     Customer.name ILIKE '%Blue Prism Technologies LE-1001%'
 #
 # Verified PostgreSQL Golden Data:
 #
-#     matching customer records = 6
-#     invoice count             = 24
+#     matching customer records = 1 (SYN-CUST-1001-01#527#1001)
+#     invoice count             = 4
 # ==========================================================
 
+@pytest.mark.integration
 def test_research_agent_invoice_entity_count_end_to_end():
 
     structured_response = {
@@ -330,7 +333,7 @@ def test_research_agent_invoice_entity_count_end_to_end():
                     "customer name",
 
                 "value":
-                    "Blue Prism",
+                    "Blue Prism Technologies LE-1001",
             }
         ],
 
@@ -349,7 +352,7 @@ def test_research_agent_invoice_entity_count_end_to_end():
         response = (
             agent.ask(
                 "How many invoices "
-                "does Blue Prism have?"
+                "does Blue Prism Technologies LE-1001 have?"
             )
         )
 
@@ -403,7 +406,7 @@ def test_research_agent_invoice_entity_count_end_to_end():
 
         assert (
             response.data["value"]
-            == 24
+            == 4
         )
 
         # ==================================================
@@ -414,7 +417,7 @@ def test_research_agent_invoice_entity_count_end_to_end():
             response.answer
             ==
             "The count of invoice records "
-            "for Blue Prism is 24."
+            "for Blue Prism Technologies LE-1001 is 4."
         )
 
         # ==================================================
@@ -539,4 +542,48 @@ def test_factory_accepts_chat_model_abstraction():
 
     finally:
 
+        neo4j.close()
+
+# ==========================================================
+# Decision D-001: an ambiguous customer name is clarified,
+# never answered with a combined total.
+#
+# "Blue Prism" matches six customer records owned by three
+# different companies (527, 528, 529). The previous expected
+# 24000.00 was a cross-company sum and is retired.
+# ==========================================================
+
+@pytest.mark.integration
+def test_research_agent_ambiguous_customer_name_requests_clarification():
+
+    agent, neo4j = build_agent(
+        {
+            "intent": "aggregate",
+            "concepts": ["Customer", "PaymentReceipt"],
+            "result_concept": "Customer",
+            "measure_concept": "PaymentReceipt",
+            "measure_attribute": "payment amount",
+            "group_by_concepts": [],
+            "entities": [
+                {
+                    "concept": "Customer",
+                    "attribute": "customer name",
+                    "value": "Blue Prism",
+                }
+            ],
+            "aggregation": "SUM",
+        }
+    )
+
+    try:
+        response = agent.ask("How much has Blue Prism paid?")
+
+        assert response.result_type == "clarification"
+        assert response.data is None
+        assert response.row_count == 0
+        assert "more than one record" in response.answer
+        assert "24000" not in response.answer
+        assert "erp_customer_details" not in response.answer
+
+    finally:
         neo4j.close()

@@ -125,6 +125,16 @@ class QueryPlanBuilder:
             in columns.filters
         ]
 
+        # How conditions were applied (e.g. exact date period),
+        # reported with the result.
+        result_notes = list(
+            dict.fromkeys(
+                resolved.note
+                for resolved in columns.filters
+                if resolved.note
+            )
+        )
+
         # ==================================================
         # 3. Physical aggregations
         # ==================================================
@@ -275,6 +285,9 @@ class QueryPlanBuilder:
                 self._resolve_limit(
                     analysis
                 ),
+
+            result_notes=
+                result_notes,
         )
 
     # ======================================================

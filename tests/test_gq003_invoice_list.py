@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
 from decimal import Decimal
 
 from ai.providers.mock_chat import (
@@ -20,7 +24,7 @@ from execution.postgres_executor import (
 # ==========================================================
 # GQ003
 #
-# Show invoices for Blue Prism.
+# Show invoices for Blue Prism Technologies LE-1001.
 #
 # Capability:
 #
@@ -34,7 +38,7 @@ from execution.postgres_executor import (
 #
 # Filter:
 #
-#     Customer.name ILIKE '%Blue Prism%'
+#     Customer.name ILIKE '%Blue Prism Technologies LE-1001%'
 #
 # Default Invoice projection comes entirely from Neo4j:
 #
@@ -79,7 +83,7 @@ def test_gq003_invoice_list_end_to_end():
                     "customer name",
 
                 "value":
-                    "Blue Prism",
+                    "Blue Prism Technologies LE-1001",
             }
         ],
 
@@ -112,7 +116,7 @@ def test_gq003_invoice_list_end_to_end():
         )
 
         response = agent.ask(
-            "Show invoices for Blue Prism."
+            "Show invoices for Blue Prism Technologies LE-1001."
         )
 
         # ==================================================
@@ -126,7 +130,7 @@ def test_gq003_invoice_list_end_to_end():
 
         assert (
             response.row_count
-            == 24
+            == 4
         )
 
         assert (
@@ -141,7 +145,7 @@ def test_gq003_invoice_list_end_to_end():
 
         assert (
             len(response.data)
-            == 24
+            == 4
         )
 
         # ==================================================
@@ -176,7 +180,7 @@ def test_gq003_invoice_list_end_to_end():
 
         assert (
             len(invoices)
-            == 24
+            == 4
         )
 
         # ==================================================

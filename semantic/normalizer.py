@@ -9,6 +9,8 @@ from ontology.concept_catalog import (
     ConceptCatalogService,
 )
 
+from semantic.existence import existence_concepts
+
 from semantic.models import (
     AggregationIntent,
     ExistenceIntent,
@@ -469,26 +471,25 @@ class SemanticQueryNormalizer:
 
         existence_conditions = []
 
-        if intent == "list":
+        # Shared rule (semantic.existence): extra concepts that
+        # only qualify which result records count become EXISTS
+        # conditions instead of row-multiplying joins.
+        for concept in existence_concepts(
+            intent=intent,
+            concepts=concepts,
+            result_concept=result_concept,
+            measure_concept=measure_concept,
+            filter_concepts={item.concept for item in filters},
+            grouping_concepts={item.concept for item in groupings},
+        ):
 
-            filter_concepts = {
-                item.concept
-                for item in filters
-            }
-
-            for concept in concepts:
-
-                if (
-                    concept == result_concept
-                    or concept in filter_concepts
-                ):
-                    continue
-
-                existence_conditions.append(
-                    ExistenceIntent(
-                        concept=concept
-                    )
+            existence_conditions.append(
+                ExistenceIntent(
+                    concept=concept
                 )
+            )
+
+        if existence_conditions:
 
             if (
                 len(existence_conditions)
@@ -500,7 +501,7 @@ class SemanticQueryNormalizer:
                         "SEMANTIC_CONTRADICTION",
 
                     message=(
-                        "LIST query contains more "
+                        "Query contains more "
                         "existence conditions than "
                         "SemanticQuery v1 supports."
                     ),
@@ -721,6 +722,9 @@ class SemanticQueryNormalizer:
 
             filters=
                 filters,
+
+            existence_conditions=
+                existence_conditions,
         )
 
         return SemanticNormalizationResult(

@@ -19,6 +19,51 @@ class AskRequest(BaseModel):
         max_length=5000,
     )
 
+    # jwt mode: binds clarification choices to this conversation.
+    # Ignored in api_key mode (no verified caller to bind to).
+    conversation_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+    )
+
+
+class MeResponse(BaseModel):
+    """
+    GET /me: who the verified caller is and which companies
+    (tenants) they may work in. Everything comes from the
+    verified token, never from the request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+
+    subject_id: str
+
+    kind: str
+
+    roles: list[str]
+
+    tenants: list[str]
+
+
+class ClarifyRequest(BaseModel):
+    """
+    HTTP request contract for POST /clarify (jwt mode).
+    Identity and tenant come from the token, never from here.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+
+    conversation_id: str = Field(min_length=1, max_length=200)
+
+    clarification_id: str = Field(min_length=1, max_length=200)
+
+    option_id: str = Field(min_length=1, max_length=200)
+
 
 class APIErrorResponse(BaseModel):
     """
@@ -35,3 +80,75 @@ class APIErrorResponse(BaseModel):
     detail: str
 
     request_id: str | None = None
+
+# ==========================================================
+# Documents (Step 8). Workspace and uploader come from the
+# verified token; nothing here is taken from the file.
+# ==========================================================
+
+class DocumentVersionInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: int
+    status: str            # queued, processing, ready, failed, deleting, deleted
+    message: str | None    # safe explanation for failed or replaced versions
+    progress_percent: int
+    file_type: str
+    size_bytes: int
+    passage_count: int
+    notes: list[str]       # what was skipped, e.g. hidden sheets
+    can_retry: bool
+    uploaded_at: str
+    updated_at: str
+
+
+class DocumentInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    document_id: str
+    filename: str
+    # True when a version is ready and its passages are searchable.
+    searchable: bool
+    active_version: int | None
+    latest: DocumentVersionInfo
+    # Upload only: the same file was already in this workspace.
+    duplicate: bool = False
+
+
+class DocumentList(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    documents: list[DocumentInfo]
+
+
+class DocumentDetail(DocumentInfo):
+    versions: list[DocumentVersionInfo]
+
+
+class DocumentSearchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class DocumentPassage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    document_id: str
+    version: int
+    # e.g. "terms.pdf · page 3"
+    citation: str
+    # The passage exactly as stored in the document (never reworded).
+    text: str
+
+
+class DocumentSearchResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # complete, empty or clarification
+    status: str
+    message: str | None = None
+    # The words actually searched for, so the UI can highlight them.
+    terms: list[str]
+    results: list[DocumentPassage]

@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
 from decimal import Decimal
 
 from ai.providers.mock_chat import (
@@ -166,7 +170,7 @@ def test_gq007_invoice_adjustment_total_end_to_end():
             response.answer
             ==
             "The total adjustment amount "
-            "is 6750.00."
+            "is 6750.00 USD."
         )
 
         # Physical implementation details should not
