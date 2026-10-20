@@ -16,6 +16,21 @@ from sql_compiler.models import (
 )
 
 
+
+def _column_sql(alias: str, column: str) -> str:
+    """
+    alias.column, quoting a column whose name is not plain lowercase.
+
+    PostgreSQL folds unquoted names to lowercase, so a column created as
+    "company_Id" can only be read quoted. Names are already checked
+    against IDENTIFIER_PATTERN (letters, digits, underscore), so quoting
+    cannot introduce SQL.
+    """
+    if column == column.lower():
+        return f"{alias}.{column}"
+    return f'{alias}."{column}"'
+
+
 class DeterministicSQLCompiler:
     """
     Compile a validated QueryPlan into PostgreSQL SQL.
@@ -359,8 +374,8 @@ class DeterministicSQLCompiler:
         ]
 
         return (
-            f"{table_alias}."
-            f"{projection.column} "
+            f"{_column_sql(table_alias, projection.column)}"
+            f" "
             f"AS {projection.alias}"
         )
 
@@ -404,8 +419,8 @@ class DeterministicSQLCompiler:
 
         expression = (
             f"{function}("
-            f"{table_alias}."
-            f"{aggregation.column}"
+            f"{_column_sql(table_alias, aggregation.column)}"
+            f""
             f")"
         )
 
@@ -438,10 +453,10 @@ class DeterministicSQLCompiler:
             )
 
             compiled += (
-                f",\n    COUNT({table_alias}."
-                f"{aggregation.missing_key_column}) "
-                f"FILTER (WHERE {table_alias}."
-                f"{aggregation.column} IS NULL) AS "
+                f",\n    COUNT({_column_sql(table_alias, aggregation.missing_key_column)}"
+                f") "
+                f"FILTER (WHERE {_column_sql(table_alias, aggregation.column)}"
+                f" IS NULL) AS "
                 f"{aggregation.missing_alias}"
             )
 
@@ -629,11 +644,11 @@ class DeterministicSQLCompiler:
                     f"{new_table} "
                     f"AS {new_alias}\n"
                     f"    ON "
-                    f"{left_alias}."
-                    f"{join.left_column} "
+                    f"{_column_sql(left_alias, join.left_column)}"
+                    f" "
                     f"= "
-                    f"{right_alias}."
-                    f"{join.right_column}"
+                    f"{_column_sql(right_alias, join.right_column)}"
+                    f""
                 )
 
                 # Extra ON conditions apply only to the table this
@@ -646,8 +661,8 @@ class DeterministicSQLCompiler:
                         )
                     self._validate_identifier(condition.column)
                     clause += (
-                        f"\n   AND {new_alias}."
-                        f"{condition.column} = %s"
+                        f"\n   AND {_column_sql(new_alias, condition.column)}"
+                        f" = %s"
                     )
                     join_parameters.append(condition.value)
 
@@ -832,8 +847,8 @@ class DeterministicSQLCompiler:
                 )
 
                 clauses.append(
-                    f"{table_alias}."
-                    f"{query_filter.column} "
+                    f"{_column_sql(table_alias, query_filter.column)}"
+                    f" "
                     f"IN ({placeholders})"
                 )
 
@@ -848,8 +863,8 @@ class DeterministicSQLCompiler:
             else:
 
                 clauses.append(
-                    f"{table_alias}."
-                    f"{query_filter.column} "
+                    f"{_column_sql(table_alias, query_filter.column)}"
+                    f" "
                     f"{operator} %s"
                 )
 
@@ -1395,11 +1410,11 @@ class DeterministicSQLCompiler:
             )
 
         return (
-            f"{aliases[join.left_table]}."
-            f"{join.left_column} "
+            f"{_column_sql(aliases[join.left_table], join.left_column)}"
+            f" "
             f"= "
-            f"{aliases[join.right_table]}."
-            f"{join.right_column}"
+            f"{_column_sql(aliases[join.right_table], join.right_column)}"
+            f""
         )
 
     # ======================================================
@@ -1472,8 +1487,8 @@ class DeterministicSQLCompiler:
             ]
 
             expressions.append(
-                f"{table_alias}."
-                f"{grouping.column}"
+                f"{_column_sql(table_alias, grouping.column)}"
+                f""
             )
 
         return (

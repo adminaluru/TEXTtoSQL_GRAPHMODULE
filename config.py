@@ -93,6 +93,18 @@ class Settings(BaseSettings):
     # ROUTING_ENABLED=false keeps the original database-only path.
     routing_enabled: bool = True
     route_classifier_enabled: bool = True
+
+    # Step 12a (decision D-012): write document answers from the passages
+    # (each sentence cited and checked). This sends passage text to the AI
+    # provider, which D-012 allows for synthetic development data only:
+    # refused at start-up when APP_ENV=production.
+    grounded_answers_enabled: bool = False
+
+    # Step 12c (D-012): save each user's conversations per company
+    # (jwt mode only), kept until the user deletes them. A local SQLite
+    # file outside Git (data/ is ignored); back it up like a database.
+    conversations_enabled: bool = True
+    conversation_storage_path: str = "data/conversations/conversations.sqlite3"
     document_storage_dir: str = "data/documents"
     document_max_file_mb: int = 25
     document_processing_timeout_seconds: int = 120

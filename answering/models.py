@@ -61,6 +61,12 @@ class AnswerResponse(BaseModel):
 
     passages: list[SourcePassage] | None = None
 
+    # Step 12 (D-012): "written" when the answer text was written from the
+    # passages (each sentence ends with its passage numbers, e.g. "[1]",
+    # counting the passages list from 1); "quoted" when the passages are
+    # shown as the answer. Left out for database-only answers.
+    answer_basis: Literal["written", "quoted"] | None = None
+
     # Why a clarification was returned (e.g. "clarification_entity",
     # "clarification_unsupported"). Internal: never serialized, so the
     # /ask JSON contract is unchanged; adapters map it to their status.
@@ -70,10 +76,15 @@ class AnswerResponse(BaseModel):
     # routing benchmark, never serialized).
     _route_trace: dict | None = PrivateAttr(default=None)
 
+    # Step 12b (D-012): the figures exactly as written in `answer` (e.g.
+    # "24000.00 USD"), so a combined answer can hide them from the AI behind
+    # placeholders and put them back unchanged. Internal, never serialized.
+    _figures: tuple[str, ...] = PrivateAttr(default=())
+
     @model_serializer(mode="wrap")
     def _omit_unset_routing(self, handler):
         data = handler(self)
-        for name in ("route", "passages"):
+        for name in ("route", "passages", "answer_basis"):
             if data.get(name) is None:
                 data.pop(name, None)
         return data

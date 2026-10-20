@@ -15,7 +15,7 @@ from typing import Callable, Iterable
 
 from hybrid_contracts import Route
 
-from .rules import RouteVocabulary, classify
+from .rules import RouteVocabulary, classify, database_part
 
 # Order in which steps are listed (they run in parallel when independent).
 _ORDER = (Route.SQL, Route.DOCUMENT)
@@ -35,6 +35,9 @@ class RoutePlan:
     classifier_calls: int
     signals: tuple[str, ...]
     notes: tuple[str, ...] = ()
+    # Both routes and a clear two-part question: what to ask the database
+    # (its half only). None: ask it the whole question.
+    database_question: str | None = None
 
 
 class QuestionRouter:
@@ -65,4 +68,6 @@ class QuestionRouter:
             routes = routes - {Route.DOCUMENT}
             notes.append(NO_DOCUMENTS if routes else DOCUMENTS_ONLY_NONE)
         routes = routes & available
-        return RoutePlan(tuple(r for r in _ORDER if r in routes), method, calls, verdict.signals, tuple(notes))
+        ordered = tuple(r for r in _ORDER if r in routes)
+        split = database_part(question, self._vocabulary) if ordered == _ORDER else None
+        return RoutePlan(ordered, method, calls, verdict.signals, tuple(notes), split)

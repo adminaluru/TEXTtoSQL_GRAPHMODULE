@@ -1,6 +1,9 @@
+import { useState } from "react";
+
 import type { AnswerResponse } from "../api/types";
 import { isClarificationPrompt, isScalarData } from "../api/types";
 import { formatAmount } from "../format/values";
+import { AnswerText } from "./AnswerText";
 import { Notices } from "./Notices";
 import { Passages } from "./Passages";
 import { ResultTable } from "./ResultTable";
@@ -27,6 +30,9 @@ interface Props {
  */
 export function AnswerCard({ answer, choicesLocked, busy, selected, onSelect, onChoose }: Props) {
   const { data } = answer;
+  const written = answer.answer_basis === "written";
+  const passageCount = answer.passages?.length ?? 0;
+  const [highlighted, setHighlighted] = useState<number | null>(null);
 
   return (
     <article
@@ -41,7 +47,11 @@ export function AnswerCard({ answer, choicesLocked, busy, selected, onSelect, on
         <p className="answer-value">{formatAmount(data.value, "currency" in data ? data.currency : undefined)}</p>
       )}
 
-      <p className="answer-text">{answer.answer}</p>
+      {written ? (
+        <AnswerText text={answer.answer} passageCount={passageCount} onCite={setHighlighted} />
+      ) : (
+        <p className="answer-text">{answer.answer}</p>
+      )}
 
       {answer.result_type === "tabular" && Array.isArray(data) && (
         <ResultTable rows={data} hide={Object.keys(data[0] ?? {}).filter((k) => k.endsWith("_missing"))} />
@@ -65,7 +75,9 @@ export function AnswerCard({ answer, choicesLocked, busy, selected, onSelect, on
         </div>
       )}
 
-      {answer.passages && answer.passages.length > 0 && <Passages passages={answer.passages} />}
+      {answer.passages && answer.passages.length > 0 && (
+        <Passages passages={answer.passages} numbered={written} highlighted={highlighted} />
+      )}
 
       <Notices items={answer.warnings} />
 

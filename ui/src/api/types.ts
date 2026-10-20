@@ -37,6 +37,10 @@ export interface AnswerResponse {
   // Step 11: which sources answered, and document passages quoted exactly.
   route?: "database" | "documents" | "both" | null;
   passages?: QuotedPassage[];
+  // Step 12 (D-012): "written" when the text was written from the sources;
+  // each sentence then ends with markers such as "[1]" (passage 1 in
+  // `passages`) or "[database]". "quoted" when the passages are the answer.
+  answer_basis?: "written" | "quoted";
 }
 
 export interface QuotedPassage {
@@ -106,4 +110,28 @@ export interface DocumentSearchResponse {
   message: string | null;
   terms: string[];
   results: DocumentPassage[];
+}
+
+// Saved conversations (Step 12c): mirrors api/models.py. Only the caller's
+// own, in the active company; the server enforces both.
+
+export interface ConversationInfo {
+  conversation_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
+export interface ConversationList {
+  conversations: ConversationInfo[];
+}
+
+export type SavedMessage =
+  | { kind: "question"; content: string; created_at: string }
+  | { kind: "choice"; content: { option_id: string; label: string | null }; created_at: string }
+  | { kind: "answer"; content: AnswerResponse; created_at: string };
+
+export interface ConversationDetail extends ConversationInfo {
+  messages: SavedMessage[];
 }

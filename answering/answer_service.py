@@ -99,6 +99,13 @@ class AnswerService:
                 result=result
             )
 
+            # Each row carries its currency, but a reader may still add
+            # rows up: say when they are not in one currency (D-004).
+            if result.currency_alias:
+                answer.answer += self._mixed_currency_sentence(
+                    [r.get(result.currency_alias) for r in result.rows]
+                )
+
             if result.missing_count:
                 answer.warnings.append(
                     self._missing_sentence(analysis, result.missing_count).strip()
@@ -274,7 +281,7 @@ class AnswerService:
             result.missing_count,
         )
 
-        return AnswerResponse(
+        response = AnswerResponse(
             answer=answer,
 
             result_type="scalar",
@@ -300,6 +307,10 @@ class AnswerService:
             warnings=result.warnings,
         )
 
+        response._figures = (formatted_value,)
+
+        return response
+
     # ======================================================
     # Currency-split answer
     # ======================================================
@@ -324,7 +335,7 @@ class AnswerService:
             ),
         )
 
-        parts = "; ".join(
+        part_texts = [
             (
                 self._format_value(r[value_alias])
                 if r[value_alias] is not None
@@ -333,7 +344,9 @@ class AnswerService:
             + " "
             + self._currency_label(r[result.currency_alias])
             for r in rows
-        )
+        ]
+
+        parts = "; ".join(part_texts)
 
         measure_label = self._humanize(
             analysis.measure_attribute
@@ -348,7 +361,7 @@ class AnswerService:
 
         scope = f" for {subject}" if subject else ""
 
-        return AnswerResponse(
+        response = AnswerResponse(
             answer=(
                 f"The {aggregation_label}{measure_label}"
                 f"{self._record_scope(analysis)}"
@@ -363,6 +376,12 @@ class AnswerService:
             data=rows,
             warnings=result.warnings,
         )
+
+        response._figures = tuple(
+            p for p, r in zip(part_texts, rows) if r[value_alias] is not None
+        )
+
+        return response
 
     @staticmethod
     def _value_columns(
@@ -449,6 +468,33 @@ class AnswerService:
             f" of {self._humanize(analysis.result_concept or 'record')} "
             f"records{qualifier}"
         )
+
+    @staticmethod
+    def _mixed_currency_sentence(
+        currencies: Sequence[Any],
+    ) -> str:
+
+        known = sorted({str(c) for c in currencies if c not in (None, "")})
+        unknown = any(c in (None, "") for c in currencies)
+
+        if len(known) > 1:
+            sentence = (
+                f" Amounts are in {len(known)} currencies "
+                f"({', '.join(known)}); do not add rows in "
+                "different currencies together."
+            )
+        elif unknown and known:
+            sentence = (
+                " Some rows have no currency; do not add them to "
+                f"the {known[0]} amounts."
+            )
+        else:
+            return ""
+
+        if unknown and len(known) > 1:
+            sentence += " Some rows have no currency."
+
+        return sentence
 
     @staticmethod
     def _currency_label(

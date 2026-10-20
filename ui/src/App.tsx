@@ -95,6 +95,8 @@ export function App({ api = createClient() }: { api?: ApiClient }) {
         <Sidebar
           conversations={chat.conversations}
           activeId={chat.active?.id ?? null}
+          listStatus={chat.listStatus}
+          listError={chat.listError}
           roleLabel={roleLabel}
           subject={me.subject_id}
           onNew={() => {
@@ -103,6 +105,10 @@ export function App({ api = createClient() }: { api?: ApiClient }) {
           }}
           onSelect={(id) => {
             chat.selectConversation(id);
+            setSelectedId(null);
+          }}
+          onDelete={(id) => {
+            void chat.removeConversation(id);
             setSelectedId(null);
           }}
         />

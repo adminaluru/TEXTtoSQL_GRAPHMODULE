@@ -5,6 +5,10 @@ Call after access policy has scoped the plan and database credentials.
 This component does not implement tenant or field authorization: an injected
 EntityScopePolicy supplies the active-company row predicates (decision D-001).
 
+When a name matches several records as a substring, a whole-name match
+(case-insensitive) is preferred: exactly one is pinned, several narrow the
+choices, none keeps the substring result.
+
 Ambiguous names can be answered with labelled choices (decision D-003: name
 and legal entity). A selected record is looked up again with the original
 name, the current scope and its key before it is pinned, so a choice that is
@@ -111,6 +115,15 @@ class EntityMatchGuard:
                                  for c, a in zip(keys, aliases)], limit=2,
                 )
                 result = self._run(probe)
+                if (result.truncated or len(result.rows) > 1) and selected is None:
+                    # Prefer a whole-name match (case-insensitive) over
+                    # substring matches: "LE-1001" must not be ambiguous with
+                    # "LE-10010". Several exact matches narrow the choices.
+                    exact_filters = self._exact_name_filters(local_filters)
+                    if exact_filters is not None:
+                        exact = self._run(probe.model_copy(update={"filters": exact_filters}))
+                        if exact.rows:
+                            result, local_filters = exact, exact_filters
                 if result.truncated or len(result.rows) > 1:
                     if list_choices and table in self._choice_labels:
                         return self._choices(plan, (index, table), local_filters, keys)
@@ -196,6 +209,35 @@ class EntityMatchGuard:
         if any(a not in row or row[a] is None for a in aliases):
             raise ValueError("Entity identity lookup returned an invalid primary key.")
         return tuple(row[a] for a in aliases)
+
+    @classmethod
+    def _exact_name_filters(cls, filters: list[QueryFilter]) -> list[QueryFilter] | None:
+        # "%value%" -> "value": ILIKE without wildcards is a case-insensitive
+        # whole-value match. None when no filter can be narrowed this way.
+        exact, changed = [], False
+        for f in filters:
+            inner = cls._unwrap_contains(f.value) if f.operator == "ILIKE" else None
+            if inner is not None:
+                f, changed = f.model_copy(update={"value": inner}), True
+            exact.append(f)
+        return exact if changed else None
+
+    @staticmethod
+    def _unwrap_contains(value: Any) -> str | None:
+        if not isinstance(value, str) or len(value) < 3 or value[0] != "%" or value[-1] != "%":
+            return None
+        inner = value[1:-1]
+        i = 0
+        while i < len(inner):
+            if inner[i] == "\\":
+                if i + 1 == len(inner):
+                    return None  # the closing "%" was escaped, not a wildcard
+                i += 2
+            elif inner[i] in "%_":
+                return None  # an unescaped wildcard inside: not a plain contains
+            else:
+                i += 1
+        return inner
 
     @staticmethod
     def _key_filters(table, keys, values) -> list[QueryFilter]:

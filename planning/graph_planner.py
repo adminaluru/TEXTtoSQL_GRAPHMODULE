@@ -9,6 +9,7 @@ from observability.perf import (
 )
 
 from ontology.models import (
+    OntologyAmbiguityError,
     PhysicalPath,
     SemanticRelationship,
     TableMetadata,
@@ -16,6 +17,10 @@ from ontology.models import (
 
 from ontology.ontology_service import (
     OntologyService,
+)
+
+from planning.errors import (
+    UnsupportedPredicateError,
 )
 
 from planning.graph_models import (
@@ -38,6 +43,11 @@ from semantic.models import (
 
 logger = logging.getLogger(
     "uvicorn.error"
+)
+
+ONTOLOGY_AMBIGUOUS = (
+    "This question uses a business term that is defined more than once, "
+    "so it cannot be answered safely yet."
 )
 
 
@@ -120,6 +130,20 @@ class GraphPlanner:
     # ======================================================
 
     def plan(
+        self,
+        analysis: QuestionAnalysis,
+        semantic_query: SemanticQuery | None = None,
+    ) -> GraphPlan:
+
+        # An ambiguous ontology is refused, never repaired: a retry could
+        # pick a different table and answer a different question.
+        try:
+            return self._plan(analysis, semantic_query)
+        except OntologyAmbiguityError as exc:
+            logger.warning("FLOWONE_ONTOLOGY_AMBIGUOUS %s", exc)
+            raise UnsupportedPredicateError(ONTOLOGY_AMBIGUOUS) from exc
+
+    def _plan(
         self,
         analysis: QuestionAnalysis,
         semantic_query: SemanticQuery | None = None,

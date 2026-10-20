@@ -9,9 +9,8 @@ permissions:
 
 jobs:
   unit:
-    # Database-free tests only. Tests marked "integration" need the live
-    # PostgreSQL and Neo4j Golden Data and are deselected here until a
-    # dedicated test store exists (action A1.3).
+    # Database-free tests only. Tests marked "integration" run in the
+    # "integration" job below, against disposable test databases.
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -50,9 +49,99 @@ jobs:
 
       - name: Portable packages in isolation (no FlowOne app on sys.path)
         run: |
-          for package in tenant_scope clarification_state trusted_identity document_ingestion document_retrieval question_router; do
+          for package in tenant_scope clarification_state trusted_identity document_ingestion document_retrieval question_router grounded_answers; do
             (cd "packages/$package" && python -I -m pytest -q -p no:cacheprovider tests)
           done
+
+  integration:
+    # Tests marked "integration" (action A1.3): fresh PostgreSQL and Neo4j
+    # containers, same versions as development, loaded with the versioned
+    # synthetic Golden Data in fixtures/golden. The application connects as
+    # the read-only login (docs/sql/flowone_readonly_role.sql), as in
+    # development. Passwords here protect throwaway containers only.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_PASSWORD: ci-admin-password
+          POSTGRES_DB: flowone_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      neo4j:
+        image: neo4j:5.26.28-community
+        env:
+          NEO4J_AUTH: neo4j/ci-neo4j-password
+          # Less start-up work; nothing is sent from CI.
+          NEO4J_dbms_usage__report_enabled: "false"
+        ports:
+          - 7687:7687
+
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: flowone_test
+      POSTGRES_USER: flowone_reader
+      POSTGRES_PASSWORD: ci-reader-password
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ci-neo4j-password
+      # Shared runners are slower than a developer machine: allow more time
+      # to connect to Neo4j and per query than the application defaults (5 s, 10 s).
+      NEO4J_CONNECTION_TIMEOUT_SECONDS: "30"
+      NEO4J_QUERY_TIMEOUT_SECONDS: "30"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            constraints.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -c constraints.txt
+
+      - name: Wait for Neo4j start-up to finish
+        # Neo4j answers simple queries minutes before it logs "Started."; until
+        # then real queries are very slow (seen: 55 s) and time out.
+        run: |
+          for i in $(seq 1 140); do
+            docker logs "${{ job.services.neo4j.id }}" 2>&1 | grep -q "Started\." && exit 0
+            sleep 3
+          done
+          docker logs "${{ job.services.neo4j.id }}" 2>&1 | tail -20
+          exit 1
+
+      - name: Load the Golden Data fixtures
+        # Waits until both databases answer quickly several times in a row:
+        # a fresh Neo4j accepts a first query minutes before start-up ends.
+        run: >-
+          python -m tools.golden_fixtures load --wait-seconds 420
+          --postgres-dsn postgresql://postgres:ci-admin-password@localhost:5432/flowone_test
+          --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password ci-neo4j-password
+
+      - name: Create the read-only login
+        env:
+          PGPASSWORD: ci-admin-password
+        run: >-
+          psql -h localhost -U postgres -d flowone_test -q -v reader_password=ci-reader-password
+          -f docs/sql/flowone_readonly_role.sql
+
+      - name: Integration tests
+        run: python -m pytest -m integration -q
 
   ui:
     # Chat UI: type-check, unit tests (fake API, no backend), production build.

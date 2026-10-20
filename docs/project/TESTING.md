@@ -3,10 +3,10 @@
 Two groups, separated by the `integration` marker (registered in `pytest.ini`,
 `--strict-markers` so a misspelt marker fails instead of silently skipping).
 
-| Group | Needs | Count (2026-10-15, after Step 7) | Runs in CI |
+| Group | Needs | Count (2026-10-20) | Runs in CI |
 |-------|-------|--------------------|------------|
-| Database-free (`not integration`) | nothing; no `.env` | 491 | yes |
-| Integration (`integration`) | live PostgreSQL + Neo4j Golden Data from `.env` | 97 | no (A1.3) |
+| Database-free (`not integration`) | nothing; no `.env` | 893 | yes (`unit` job) |
+| Integration (`integration`) | PostgreSQL + Neo4j with the Golden Data: from `.env` locally, or the fixtures in `fixtures/golden` | 107 | yes (`integration` job, A1.3) |
 
 ## PowerShell (from the repository root, venv active)
 
@@ -39,6 +39,34 @@ foreach ($p in 'tenant_scope','clarification_state') { Push-Location "packages\$
 
 ## CI
 
-`.github/workflows/tests.yml` runs on push and pull request: installs with constraints, runs the
-database-free tests, then the `tenant_scope` package in an isolated interpreter. `config.py`
-validates connection settings at import, so CI supplies unusable placeholders (not secrets).
+`.github/workflows/tests.yml` runs on push and pull request:
+
+- `unit`: installs with constraints, runs the database-free tests, then each portable package in an
+  isolated interpreter. `config.py` validates connection settings at import, so this job supplies
+  unusable placeholders (not secrets).
+- `integration` (A1.3): starts PostgreSQL 17.6 and Neo4j 5.26.28 containers, waits until Neo4j has
+  finished starting ("Started."), loads `fixtures/golden/v1`, creates the read-only login with
+  `docs/sql/flowone_readonly_role.sql`, and runs the integration tests as that login. Passwords in the
+  workflow protect throwaway containers only.
+- `ui`: type-check, unit tests and production build of the chat UI.
+
+## Golden Data fixtures (A1.3)
+
+`fixtures/golden/v1/` holds the synthetic Golden Data: `postgres.sql` (the 40 FlowOne tables in the
+ontology, structure and rows; other projects' tables in the same database are never exported) and
+`neo4j.json` (the whole ontology: constraints, indexes, nodes, relationships).
+
+```powershell
+# After changing the development Golden Data or ontology: re-export, review the diff, commit.
+python -m tools.golden_fixtures export
+
+# Load into disposable test databases (refuses non-empty targets unless --replace).
+python -m tools.golden_fixtures load --wait-seconds 300 `
+  --postgres-dsn postgresql://postgres:<admin password>@localhost:5433/flowone_test `
+  --neo4j-uri bolt://localhost:7690 --neo4j-user neo4j --neo4j-password <password>
+```
+
+Lessons from making the fresh-container run reliable (all built into the job and the loader):
+Neo4j answers simple queries before start-up has finished (wait for "Started."); a freshly loaded
+Neo4j has no statistics, so path queries can take over a minute until `db.prepareForReplanning()`
+runs (the loader does); and shared runners need longer Neo4j timeouts than the application defaults.

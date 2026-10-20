@@ -175,6 +175,47 @@ def test_unreachable_neo4j_fails_fast_as_unavailable(monkeypatch):
     assert time.monotonic() - started < 15
 
 
+
+def _neo4j_failing_with(code):
+    from unittest.mock import MagicMock
+
+    from neo4j.exceptions import Neo4jError
+
+    from database.neo4j import Neo4jClient
+
+    client = Neo4jClient.__new__(Neo4jClient)
+    client._database = "neo4j"
+    client._query_timeout_seconds = 10
+    driver = MagicMock()
+    driver.session.return_value.__enter__.return_value.run.side_effect = Neo4jError._hydrate_neo4j(
+        code=code, message="server says no")
+    client._driver = driver
+    return client
+
+
+def test_neo4j_query_timeout_is_a_timeout_not_an_internal_error():
+    # Seen on a cold Neo4j (fresh CI container): the server stops a slow
+    # query at the client's timeout and reports a ClientError; the API used
+    # to answer 500. TimeoutError maps to 503.
+    client = _neo4j_failing_with("Neo.ClientError.Transaction.TransactionTimedOutClientConfiguration")
+    with pytest.raises(TimeoutError, match="Neo4j query timed out") as error:
+        client.execute_read("MATCH (n) RETURN n")
+    assert not isinstance(error.value, DeadlineExceeded)
+
+
+def test_neo4j_timeout_at_the_question_deadline_is_deadline_exceeded():
+    client = _neo4j_failing_with("Neo.ClientError.Transaction.TransactionTimedOutClientConfiguration")
+    with request_deadline(0.01):
+        time.sleep(0.05)
+        with pytest.raises(DeadlineExceeded):
+            client.execute_read("MATCH (n) RETURN n")
+
+
+def test_other_neo4j_client_errors_are_not_hidden_as_timeouts():
+    from neo4j.exceptions import CypherSyntaxError
+    with pytest.raises(CypherSyntaxError):
+        _neo4j_failing_with("Neo.ClientError.Statement.SyntaxError").execute_read("RETURN")
+
 # ----------------------------------------------------- live database
 
 def approved(sql, parameters=()):

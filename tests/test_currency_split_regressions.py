@@ -197,6 +197,42 @@ def test_unknown_currency_is_shown_not_dropped():
     assert "5.00 USD; 10.00 (currency unknown)" in answer.answer
 
 
+
+# Grouped money results (e.g. total per customer) are tables with a currency
+# column; the answer text warns when the rows are not in one currency.
+
+def grouped_answer(currencies):
+    from result_analysis.models import ResultAnalysis
+    rows = [{"customer": f"C{i}", "currency": c, "sum_amount": Decimal("1.00")}
+            for i, c in enumerate(currencies)]
+    result = ResultAnalysis(result_type="tabular", columns=["customer", "currency", "sum_amount"],
+                            row_count=len(rows), currency_alias="currency", rows=rows)
+    analysis = QuestionAnalysis(intent="aggregate", concepts=["Invoice"], measure_concept="Invoice",
+                                measure_attribute="invoice amount", aggregation="SUM",
+                                group_by_concepts=["Customer"])
+    return AnswerService().build(analysis, result).answer
+
+
+def test_grouped_rows_in_one_currency_need_no_warning():
+    assert grouped_answer(["USD", "USD"]) == "Returned 2 matching rows."
+
+
+def test_grouped_rows_in_several_currencies_are_flagged():
+    answer = grouped_answer(["USD", "INR", "USD"])
+    assert answer == ("Returned 3 matching rows. Amounts are in 2 currencies (INR, USD); "
+                      "do not add rows in different currencies together.")
+
+
+def test_grouped_rows_without_currency_are_flagged():
+    assert "Some rows have no currency; do not add them to the USD amounts." in grouped_answer(["USD", None])
+    answer = grouped_answer(["USD", "INR", ""])
+    assert "2 currencies (INR, USD)" in answer and answer.endswith("Some rows have no currency.")
+
+
+def test_grouped_rows_with_only_unknown_currency_add_nothing():
+    # Every row already shows "(currency unknown)"; there is nothing to mix.
+    assert grouped_answer([None, None]) == "Returned 2 matching rows."
+
 # ----------------------------------------------------------
 # Live, read-only
 # ----------------------------------------------------------

@@ -1,0 +1,355 @@
+{
+  "mode": "live",
+  "questions_file": "document_answers.v1.json",
+  "run_at": "2026-10-19T18:06:12.181478+00:00",
+  "rows": [
+    {
+      "id": "D01",
+      "answerable": true,
+      "passages": 3,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "The late payment fee is 2% per month on the overdue amount. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 3541.1,
+      "ai_calls": 1,
+      "tokens": 562
+    },
+    {
+      "id": "D02",
+      "answerable": true,
+      "passages": 4,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "Customers receive a payment reminder 7 days before and 3 days after the due date. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1650.0,
+      "ai_calls": 1,
+      "tokens": 614
+    },
+    {
+      "id": "D03",
+      "answerable": true,
+      "passages": 3,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "A dispute must name the invoice and the claim amount. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1413.1,
+      "ai_calls": 1,
+      "tokens": 576
+    },
+    {
+      "id": "D04",
+      "answerable": true,
+      "passages": 4,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "The collections team responds to a dispute within 10 business days. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1443.9,
+      "ai_calls": 1,
+      "tokens": 603
+    },
+    {
+      "id": "D05",
+      "answerable": true,
+      "passages": 4,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "The Credit Manager must approve write-offs above 10,000 USD. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1452.4,
+      "ai_calls": 1,
+      "tokens": 645
+    },
+    {
+      "id": "D06",
+      "answerable": true,
+      "passages": 1,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "Follow up with a customer 5 days after a broken promise to pay. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1335.0,
+      "ai_calls": 1,
+      "tokens": 471
+    },
+    {
+      "id": "D07",
+      "answerable": true,
+      "passages": 3,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "Payment terms are net 30, with payment due 30 days after the invoice date. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1389.2,
+      "ai_calls": 1,
+      "tokens": 564
+    },
+    {
+      "id": "D08",
+      "answerable": true,
+      "passages": 5,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "An invoice payment is due 30 days after the invoice date. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1645.8,
+      "ai_calls": 1,
+      "tokens": 674
+    },
+    {
+      "id": "D09",
+      "answerable": true,
+      "passages": 3,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "A disputed invoice should be escalated to the Credit Manager when the claim amount exceeds 5,000 USD. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1441.2,
+      "ai_calls": 1,
+      "tokens": 581
+    },
+    {
+      "id": "D10",
+      "answerable": true,
+      "passages": 3,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "The fee is 2% per month on the overdue amount. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1246.1,
+      "ai_calls": 1,
+      "tokens": 585
+    },
+    {
+      "id": "U01",
+      "answerable": false,
+      "passages": 3,
+      "expected_passage_found": null,
+      "status": "not_answered",
+      "answer": "",
+      "cited": [],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1374.5,
+      "ai_calls": 1,
+      "tokens": 536
+    },
+    {
+      "id": "U02",
+      "answerable": false,
+      "passages": 5,
+      "expected_passage_found": null,
+      "status": "not_answered",
+      "answer": "",
+      "cited": [],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1245.0,
+      "ai_calls": 1,
+      "tokens": 627
+    },
+    {
+      "id": "U03",
+      "answerable": false,
+      "passages": 3,
+      "expected_passage_found": null,
+      "status": "not_answered",
+      "answer": "",
+      "cited": [],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 903.0,
+      "ai_calls": 1,
+      "tokens": 557
+    },
+    {
+      "id": "I01",
+      "answerable": true,
+      "passages": 2,
+      "expected_passage_found": true,
+      "status": "written",
+      "answer": "Write-offs above 10,000 USD must be approved by the Credit Manager. [1]",
+      "cited": [
+        1
+      ],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1197.5,
+      "ai_calls": 1,
+      "tokens": 526
+    },
+    {
+      "id": "I02",
+      "answerable": false,
+      "passages": 5,
+      "expected_passage_found": null,
+      "status": "not_answered",
+      "answer": "",
+      "cited": [],
+      "dropped": [],
+      "missing": [],
+      "forbidden_present": [],
+      "correct": true,
+      "write_ms": 1247.9,
+      "ai_calls": 1,
+      "tokens": 628
+    },
+    {
+      "id": "C01",
+      "answerable": true,
+      "combined": true,
+      "passages": 5,
+      "expected_passage_found": true,
+      "status": "written",
+      "route": "both",
+      "answer": "There are 12 invoices with transaction status OVERDUE. [database] Late payments incur a fee of 2% per month on the overdue amount. [1]",
+      "figures": [
+        "12"
+      ],
+      "figures_missing": [],
+      "missing": [],
+      "forbidden_present": [],
+      "dropped": [],
+      "correct": true,
+      "write_ms": 11001.2,
+      "ai_calls": 2,
+      "tokens": 2859
+    },
+    {
+      "id": "C02",
+      "answerable": true,
+      "combined": true,
+      "passages": 3,
+      "expected_passage_found": true,
+      "status": "written",
+      "route": "both",
+      "answer": "The total claimed amount is 4500.00 USD. [database] A dispute must name the invoice and the claim amount, and the collections team responds within 10 business days. [1] A disputed invoice must be escalated to the Credit Manager when the claim amount exceeds 5,000 USD. [2]",
+      "figures": [
+        "4500.00 USD"
+      ],
+      "figures_missing": [],
+      "missing": [],
+      "forbidden_present": [],
+      "dropped": [],
+      "correct": true,
+      "write_ms": 4673.9,
+      "ai_calls": 2,
+      "tokens": 2887
+    },
+    {
+      "id": "C03",
+      "answerable": true,
+      "combined": true,
+      "passages": 5,
+      "expected_passage_found": true,
+      "status": "written",
+      "route": "both",
+      "answer": "There are 24 open invoices. [database] The payment terms are net 30, meaning payment is due 30 days after the invoice date. [1]",
+      "figures": [
+        "24"
+      ],
+      "figures_missing": [],
+      "missing": [],
+      "forbidden_present": [],
+      "dropped": [],
+      "correct": true,
+      "write_ms": 5026.0,
+      "ai_calls": 2,
+      "tokens": 2907
+    },
+    {
+      "id": "C04",
+      "answerable": true,
+      "combined": true,
+      "passages": 5,
+      "expected_passage_found": true,
+      "status": "written",
+      "route": "both",
+      "answer": "The total payment amount in April 2026 is 18000.00 USD. [database] Customers receive a payment reminder 7 days before and 3 days after the due date. [1]",
+      "figures": [
+        "18000.00 USD"
+      ],
+      "figures_missing": [],
+      "missing": [],
+      "forbidden_present": [],
+      "dropped": [
+        "Payment date: 2026-04-01 to 2026-04-30 (US Central time, end date included)."
+      ],
+      "correct": true,
+      "write_ms": 4405.3,
+      "ai_calls": 2,
+      "tokens": 2943
+    }
+  ]
+}

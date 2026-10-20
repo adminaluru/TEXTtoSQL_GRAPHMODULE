@@ -57,7 +57,7 @@ from planning.empty_groups import EmptyGroupPolicy
 from planning.missing_values import MissingValuePolicy
 from planning.value_domain_guard import ValueDomainGuard
 from planning.entity_match_guard import EntityMatchGuard
-from planning.errors import UnsupportedPredicateError
+from planning.errors import AmbiguousAttributeError, UnsupportedPredicateError
 
 from planning.fanout_guard import (
     FanOutGuard,
@@ -888,6 +888,12 @@ class ResearchAgentOrchestrator:
 
                 state.failures.append(
                     reason
+                )
+
+                state.clarification = (
+                    exc.user_message
+                    if isinstance(exc, AmbiguousAttributeError)
+                    else None
                 )
 
                 retries_used = (

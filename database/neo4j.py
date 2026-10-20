@@ -8,13 +8,14 @@ from neo4j import (
     Query,
 )
 from neo4j.exceptions import (
+    ClientError,
     ServiceUnavailable,
     SessionExpired,
 )
 
 from config import settings
 
-from observability.deadline import cap_timeout
+from observability.deadline import DeadlineExceeded, cap_timeout, remaining_seconds
 
 
 logger = logging.getLogger(
@@ -246,6 +247,20 @@ class Neo4jClient:
             # Surfaces as "unavailable" (503), not an internal error.
             raise ConnectionError(
                 "Neo4j unavailable."
+            ) from exc
+
+        except ClientError as exc:
+            # The server stopped the query at the timeout given above.
+            # Neo4j reports that as a ClientError; it is a timeout (503,
+            # or 504 when the whole question ran out of time), not an
+            # internal error. Other client errors are real bugs.
+            if "TransactionTimedOut" not in (exc.code or ""):
+                raise
+            remaining = remaining_seconds()
+            if remaining is not None and remaining <= 0.05:
+                raise DeadlineExceeded() from exc
+            raise TimeoutError(
+                "Neo4j query timed out."
             ) from exc
 
     # ======================================================

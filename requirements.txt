@@ -26,3 +26,4 @@ python-multipart
 -e ./packages/document_ingestion
 -e ./packages/document_retrieval
 -e ./packages/question_router
+-e ./packages/grounded_answers

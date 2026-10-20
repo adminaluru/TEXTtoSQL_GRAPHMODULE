@@ -32,7 +32,7 @@
 
     {"id": "R25", "source": "new", "question": "What is the late payment fee?", "expected": ["documents"], "rules": "unsure"},
     {"id": "R26", "source": "new", "question": "When should we follow up with Blue Prism?", "expected": ["documents"], "rules": "unsure"},
-    {"id": "R27", "source": "new", "question": "Why was invoice INV-1001 adjusted?", "expected": ["database", "documents"], "rules": "unsure"},
+    {"id": "R27", "source": "new", "question": "Why was invoice INV-1001 adjusted?", "expected": ["database", "documents"], "rules": "clear"},
     {"id": "R28", "source": "new", "question": "Tell me about Blue Prism", "expected": ["database", "documents"], "rules": "unsure"},
     {"id": "R29", "source": "new", "question": "Is a 2% monthly fee allowed?", "expected": ["documents"], "rules": "unsure"},
     {"id": "R30", "source": "new", "question": "Who is responsible for approving write-offs?", "expected": ["documents"], "rules": "unsure"}

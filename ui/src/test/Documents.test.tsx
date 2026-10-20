@@ -37,6 +37,9 @@ function fakeApi(me: MeResponse = ONE, documents: DocumentInfo[] = []): Fake {
     listDocuments: vi.fn<ApiClient["listDocuments"]>(async () => ({ documents })),
     uploadDocument: vi.fn<ApiClient["uploadDocument"]>(async (_c: Caller, file: File) => doc("doc_new", file.name, "queued")),
     retryDocument: vi.fn<ApiClient["retryDocument"]>(async () => doc("doc_1", "a.pdf", "queued")),
+    listConversations: vi.fn<ApiClient["listConversations"]>(async () => ({ conversations: [] })),
+    getConversation: vi.fn<ApiClient["getConversation"]>(),
+    deleteConversation: vi.fn<ApiClient["deleteConversation"]>(async () => undefined),
     deleteDocument: vi.fn<ApiClient["deleteDocument"]>(async () => undefined),
     searchDocuments: vi.fn<ApiClient["searchDocuments"]>(async () => ({
       status: "complete", message: null, terms: ["late", "payment", "fee"],

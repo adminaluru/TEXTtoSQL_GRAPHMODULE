@@ -90,32 +90,18 @@ def dry_run(questions) -> dict:
     return {"mode": "dry-run", "rows": rows}
 
 
-def live(questions, passes: int) -> dict:
-    from adapters.document_files import LocalFolderFileStore
-    from adapters.document_search import SqliteDocumentDirectory, SqlitePassageSearch
-    from adapters.document_sqlite import SqliteDatabase, SqliteDocumentCatalog, SqlitePassageIndex
+def live_database_agent(chat):
+    """The real research agent for tenant-acme (synthetic tenant mapping); returns (agent, neo4j client)."""
     from agent.factory import build_research_agent
-    from agent.hybrid import HybridAssistant, load_route_vocabulary
-    from ai.providers.openai_chat import OpenAIChatModel
     from api.identity_setup import tenant_resolver_from_file
     from clarification_state import PendingSelectionStore
     from config import settings
     from database.neo4j import Neo4jClient
-    from document_ingestion import DocumentIngestionService
-    from document_retrieval import DocumentRetriever
     from execution.postgres_executor import PostgreSQLExecutor
-    from nlu.route_classifier import LLMRouteClassifier
     from ontology.cache import TTLCache
     from planning.entity_choice_labels import load_choice_labels
     from planning.tenant_entity_scope import TenantEntityScopePolicy
-    from question_router import QuestionRouter
-    from tests.document_test_files import make_docx, make_pdf
 
-    usage = LLMUsage()
-    logging.getLogger("uvicorn.error").addHandler(usage)
-    logging.getLogger("uvicorn.error").setLevel(logging.INFO)
-
-    chat = OpenAIChatModel(timeout_seconds=settings.llm_timeout_seconds, max_retries=settings.llm_max_retries)
     neo4j = Neo4jClient()
     executor = PostgreSQLExecutor(statement_timeout_ms=5000, max_rows=100)
     cache = TTLCache(ttl_seconds=settings.ontology_cache_ttl_seconds)
@@ -127,6 +113,28 @@ def live(questions, passes: int) -> dict:
         request_timeout_seconds=settings.request_timeout_seconds,
         entity_scope_policy=TenantEntityScopePolicy(resolver, ACCESS),
         entity_choice_labels=load_choice_labels(), clarification_store=PendingSelectionStore())
+    return agent, neo4j
+
+
+def live(questions, passes: int) -> dict:
+    from adapters.document_files import LocalFolderFileStore
+    from adapters.document_search import SqliteDocumentDirectory, SqlitePassageSearch
+    from adapters.document_sqlite import SqliteDatabase, SqliteDocumentCatalog, SqlitePassageIndex
+    from agent.hybrid import HybridAssistant, load_route_vocabulary
+    from ai.providers.openai_chat import OpenAIChatModel
+    from config import settings
+    from document_ingestion import DocumentIngestionService
+    from document_retrieval import DocumentRetriever
+    from nlu.route_classifier import LLMRouteClassifier
+    from question_router import QuestionRouter
+    from tests.document_test_files import make_docx, make_pdf
+
+    usage = LLMUsage()
+    logging.getLogger("uvicorn.error").addHandler(usage)
+    logging.getLogger("uvicorn.error").setLevel(logging.INFO)
+
+    chat = OpenAIChatModel(timeout_seconds=settings.llm_timeout_seconds, max_retries=settings.llm_max_retries)
+    agent, neo4j = live_database_agent(chat)
 
     with tempfile.TemporaryDirectory(prefix="flowone-routing-") as folder:
         database = SqliteDatabase(Path(folder) / "catalog.sqlite3")
@@ -145,10 +153,18 @@ def live(questions, passes: int) -> dict:
             service.process(queue.pop(0))
 
         directory = SqliteDocumentDirectory(database)
+        # Written and combined answers (Step 12) follow GROUNDED_ANSWERS_ENABLED,
+        # so the benchmark measures what users get.
+        writer = None
+        if settings.grounded_answers_enabled:
+            from answering.grounded_drafter import chat_drafter
+            from grounded_answers import GroundedAnswerWriter
+            writer = GroundedAnswerWriter(chat_drafter(chat))
         hybrid = HybridAssistant(agent, QuestionRouter(load_route_vocabulary(), LLMRouteClassifier(chat)), ACCESS,
                                  document_retriever=DocumentRetriever(SqlitePassageSearch(database), directory),
                                  has_documents=directory.has_searchable,
-                                 request_timeout_seconds=settings.request_timeout_seconds)
+                                 request_timeout_seconds=settings.request_timeout_seconds,
+                                 answer_writer=writer)
 
         rows = []
         for run in range(1, passes + 1):
@@ -160,23 +176,24 @@ def live(questions, passes: int) -> dict:
                 rows.append(measure("routing", condition, item, hybrid.ask, usage, expected))
         database.close()
     neo4j.close()
-    return {"mode": "live", "passes": passes, "rows": rows}
+    return {"mode": "live", "passes": passes, "grounded_answers": settings.grounded_answers_enabled, "rows": rows}
 
 
 def measure(mode, condition, item, ask, usage, expected=None) -> dict:
     usage.take()
     started = time.perf_counter()
-    outcome, trace = "error", {}
+    outcome, trace, basis = "error", {}, None
     try:
         answer = ask(item["question"])
         outcome = answer.result_type
+        basis = answer.answer_basis
         trace = answer._route_trace or {}
     except Exception as exc:
         outcome = f"error:{type(exc).__name__}"
     elapsed = round((time.perf_counter() - started) * 1000, 1)
     calls, tokens = usage.take()
     row = {"id": item["id"], "mode": mode, "condition": condition, "expected": item["expected"],
-           "outcome": outcome, "total_ms": elapsed, "ai_calls": calls, "tokens": tokens}
+           "outcome": outcome, "answer_basis": basis, "total_ms": elapsed, "ai_calls": calls, "tokens": tokens}
     if mode == "routing":
         chosen = {"database": {Route.SQL}, "documents": {Route.DOCUMENT},
                   "both": {Route.SQL, Route.DOCUMENT}}.get(trace.get("route"), set())
@@ -195,7 +212,11 @@ def _chosen(row: dict) -> set:
 
 def summarise(report: dict) -> str:
     rows = report["rows"]
-    lines = [f"Routing benchmark ({report['mode']}), {len({r['id'] for r in rows})} questions"]
+    written = " with written answers" if report.get("grounded_answers") else ""
+    lines = [f"Routing benchmark ({report['mode']}{written}), {len({r['id'] for r in rows})} questions"]
+    if report.get("grounded_answers"):
+        bases = [r.get("answer_basis") for r in rows if r.get("mode") == "routing" and r.get("answer_basis")]
+        lines.append(f"Document answers: written={bases.count('written')} quoted={bases.count('quoted')}")
     routed = [r for r in rows if r.get("mode", "routing") == "routing"]
     if routed:
         correct = sum(1 for r in routed if r["correct"])

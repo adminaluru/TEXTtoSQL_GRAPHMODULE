@@ -3,7 +3,15 @@
 // active company only as the X-FlowOne-Tenant header (the server verifies both).
 
 import { ApiError, fallbackMessage, kindForStatus } from "./errors";
-import type { AnswerResponse, DocumentInfo, DocumentList, DocumentSearchResponse, MeResponse } from "./types";
+import type {
+  AnswerResponse,
+  ConversationDetail,
+  ConversationList,
+  DocumentInfo,
+  DocumentList,
+  DocumentSearchResponse,
+  MeResponse,
+} from "./types";
 
 export const API_BASE = "/api";
 
@@ -64,6 +72,13 @@ export function createClient(fetchImpl: Fetch = (...args) => fetch(...args)) {
       request<AnswerResponse>(fetchImpl, "/clarify", caller, {
         json: { conversation_id: conversationId, clarification_id: clarificationId, option_id: optionId },
       }),
+
+    // Saved conversations (Step 12c): the caller's own, in the active workspace.
+    listConversations: (caller: Caller) => request<ConversationList>(fetchImpl, "/conversations", caller),
+    getConversation: (caller: Caller, conversationId: string) =>
+      request<ConversationDetail>(fetchImpl, `/conversations/${encodeURIComponent(conversationId)}`, caller),
+    deleteConversation: (caller: Caller, conversationId: string) =>
+      request<void>(fetchImpl, `/conversations/${encodeURIComponent(conversationId)}`, caller, { method: "DELETE" }),
 
     // Documents (Step 8): always in the caller's active workspace.
     listDocuments: (caller: Caller) => request<DocumentList>(fetchImpl, "/documents", caller),

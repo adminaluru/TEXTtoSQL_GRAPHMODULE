@@ -1,5 +1,5 @@
 from .router import DOCUMENTS_ONLY_NONE, NO_DOCUMENTS, Classifier, QuestionRouter, RoutePlan
-from .rules import RouteVocabulary, RuleVerdict, classify
+from .rules import RouteVocabulary, RuleVerdict, classify, database_part
 
 __all__ = [
     "DOCUMENTS_ONLY_NONE",
@@ -10,4 +10,5 @@ __all__ = [
     "RouteVocabulary",
     "RuleVerdict",
     "classify",
+    "database_part",
 ]

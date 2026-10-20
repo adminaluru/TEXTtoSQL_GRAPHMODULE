@@ -152,3 +152,39 @@ class DocumentSearchResponse(BaseModel):
     # The words actually searched for, so the UI can highlight them.
     terms: list[str]
     results: list[DocumentPassage]
+
+
+# ==========================================================
+# Saved conversations (Step 12c, decision D-012)
+# ==========================================================
+
+class ConversationInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    conversation_id: str
+    title: str             # the first question, shortened
+    created_at: str
+    updated_at: str
+    message_count: int
+
+
+class ConversationList(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Newest first; only the caller's own, in the active company.
+    conversations: list[ConversationInfo]
+
+
+class ConversationMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # question: content is the text asked
+    # choice:   content is {"option_id": ..., "label": ...} (label may be null)
+    # answer:   content is the answer exactly as /ask or /clarify returned it
+    kind: str
+    content: object
+    created_at: str
+
+
+class ConversationDetail(ConversationInfo):
+    messages: list[ConversationMessage]

@@ -1,0 +1,1640 @@
+{
+  "mode": "live",
+  "passes": 2,
+  "grounded_answers": true,
+  "rows": [
+    {
+      "id": "R01",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "error:ClientError",
+      "answer_basis": null,
+      "total_ms": 19007.4,
+      "ai_calls": 1,
+      "tokens": 2029
+    },
+    {
+      "id": "R01",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 4339.8,
+      "ai_calls": 1,
+      "tokens": 2153,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 4338.9
+      },
+      "correct": true
+    },
+    {
+      "id": "R02",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 3333.3,
+      "ai_calls": 1,
+      "tokens": 2028
+    },
+    {
+      "id": "R02",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2638.7,
+      "ai_calls": 1,
+      "tokens": 2028,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2637.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R03",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2352.3,
+      "ai_calls": 1,
+      "tokens": 2025
+    },
+    {
+      "id": "R03",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2193.9,
+      "ai_calls": 1,
+      "tokens": 2025,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2193.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R04",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 2390.3,
+      "ai_calls": 1,
+      "tokens": 2018
+    },
+    {
+      "id": "R04",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1806.1,
+      "ai_calls": 1,
+      "tokens": 2018,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1805.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R05",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2898.6,
+      "ai_calls": 1,
+      "tokens": 2089
+    },
+    {
+      "id": "R05",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2295.8,
+      "ai_calls": 1,
+      "tokens": 2088,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2295.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R06",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 3317.5,
+      "ai_calls": 1,
+      "tokens": 2015
+    },
+    {
+      "id": "R06",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1713.3,
+      "ai_calls": 1,
+      "tokens": 2015,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1711.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R07",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 1837.6,
+      "ai_calls": 1,
+      "tokens": 2016
+    },
+    {
+      "id": "R07",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 1965.4,
+      "ai_calls": 1,
+      "tokens": 2015,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1964.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R08",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 3873.2,
+      "ai_calls": 1,
+      "tokens": 2017
+    },
+    {
+      "id": "R08",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1624.5,
+      "ai_calls": 1,
+      "tokens": 2017,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1623.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R09",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 3325.5,
+      "ai_calls": 1,
+      "tokens": 2014
+    },
+    {
+      "id": "R09",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1624.7,
+      "ai_calls": 1,
+      "tokens": 2014,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1624.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R10",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2621.3,
+      "ai_calls": 1,
+      "tokens": 2019
+    },
+    {
+      "id": "R10",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2069.5,
+      "ai_calls": 1,
+      "tokens": 2019,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2068.9
+      },
+      "correct": true
+    },
+    {
+      "id": "R11",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1717.9,
+      "ai_calls": 1,
+      "tokens": 2011
+    },
+    {
+      "id": "R11",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1797.8,
+      "ai_calls": 1,
+      "tokens": 2011,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1797.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R12",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 2311.1,
+      "ai_calls": 1,
+      "tokens": 2023
+    },
+    {
+      "id": "R12",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 2408.0,
+      "ai_calls": 1,
+      "tokens": 2023,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2407.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R13",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 1969.6,
+      "ai_calls": 1,
+      "tokens": 2036
+    },
+    {
+      "id": "R13",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 2595.0,
+      "ai_calls": 1,
+      "tokens": 2128,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2594.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R14",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1588.7,
+      "ai_calls": 1,
+      "tokens": 2016
+    },
+    {
+      "id": "R14",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1879.3,
+      "ai_calls": 1,
+      "tokens": 2016,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1878.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R15",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 4897.1,
+      "ai_calls": 2,
+      "tokens": 4412
+    },
+    {
+      "id": "R15",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 7427.7,
+      "ai_calls": 3,
+      "tokens": 6690,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 7427.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R16",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1370.4,
+      "ai_calls": 1,
+      "tokens": 566,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 3.4,
+        "writing": 1366.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R17",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1332.6,
+      "ai_calls": 1,
+      "tokens": 562,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.0,
+        "writing": 1329.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R18",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1327.2,
+      "ai_calls": 1,
+      "tokens": 561,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.6,
+        "writing": 1323.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R19",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1643.6,
+      "ai_calls": 1,
+      "tokens": 488,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 3.3,
+        "writing": 1639.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R20",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1731.7,
+      "ai_calls": 1,
+      "tokens": 506,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.6,
+        "writing": 1728.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R21",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 2361.2,
+      "ai_calls": 1,
+      "tokens": 551,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.8,
+        "writing": 2358.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R22",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "scalar",
+      "answer_basis": "written",
+      "total_ms": 11203.9,
+      "ai_calls": 4,
+      "tokens": 7536,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 7.7,
+        "database": 9351.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R23",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "quoted",
+      "total_ms": 7667.5,
+      "ai_calls": 3,
+      "tokens": 4983,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.0,
+        "database": 6259.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R24",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "tabular",
+      "answer_basis": "written",
+      "total_ms": 4919.7,
+      "ai_calls": 2,
+      "tokens": 3047,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 4.8,
+        "database": 1751.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R25",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 3545.8,
+      "ai_calls": 2,
+      "tokens": 748,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.3,
+        "writing": 1643.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R26",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 4817.2,
+      "ai_calls": 3,
+      "tokens": 2697,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 4.9,
+        "database": 2250.5
+      },
+      "correct": false
+    },
+    {
+      "id": "R27",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "quoted",
+      "total_ms": 2677.0,
+      "ai_calls": 2,
+      "tokens": 2522,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 13.0,
+        "database": 1670.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R28",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2974.5,
+      "ai_calls": 2,
+      "tokens": 2207,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 50.2,
+        "database": 1635.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R29",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 2745.2,
+      "ai_calls": 2,
+      "tokens": 660,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.9,
+        "writing": 1354.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R30",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 2976.2,
+      "ai_calls": 2,
+      "tokens": 656,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 2.0,
+        "writing": 1746.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R01",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2912.7,
+      "ai_calls": 1,
+      "tokens": 2121
+    },
+    {
+      "id": "R01",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 9567.5,
+      "ai_calls": 1,
+      "tokens": 2031,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 9566.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R02",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 1578.9,
+      "ai_calls": 1,
+      "tokens": 2028
+    },
+    {
+      "id": "R02",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2696.1,
+      "ai_calls": 1,
+      "tokens": 2030,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2695.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R03",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 1817.1,
+      "ai_calls": 1,
+      "tokens": 2025
+    },
+    {
+      "id": "R03",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 1722.0,
+      "ai_calls": 1,
+      "tokens": 2025,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1721.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R04",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1439.2,
+      "ai_calls": 1,
+      "tokens": 2018
+    },
+    {
+      "id": "R04",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1777.4,
+      "ai_calls": 1,
+      "tokens": 2018,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1777.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R05",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 2054.5,
+      "ai_calls": 1,
+      "tokens": 2089
+    },
+    {
+      "id": "R05",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 9073.1,
+      "ai_calls": 1,
+      "tokens": 2032,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 9072.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R06",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1646.9,
+      "ai_calls": 1,
+      "tokens": 2015
+    },
+    {
+      "id": "R06",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1450.5,
+      "ai_calls": 1,
+      "tokens": 2015,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1449.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R07",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 1774.6,
+      "ai_calls": 1,
+      "tokens": 2015
+    },
+    {
+      "id": "R07",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 1671.5,
+      "ai_calls": 1,
+      "tokens": 2016,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1670.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R08",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1518.9,
+      "ai_calls": 1,
+      "tokens": 2017
+    },
+    {
+      "id": "R08",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 3441.7,
+      "ai_calls": 1,
+      "tokens": 2023,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 3441.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R09",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1702.6,
+      "ai_calls": 1,
+      "tokens": 2014
+    },
+    {
+      "id": "R09",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1565.5,
+      "ai_calls": 1,
+      "tokens": 2012,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1564.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R10",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 1669.1,
+      "ai_calls": 1,
+      "tokens": 2019
+    },
+    {
+      "id": "R10",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 1407.9,
+      "ai_calls": 1,
+      "tokens": 2019,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1407.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R11",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 2880.8,
+      "ai_calls": 1,
+      "tokens": 2011
+    },
+    {
+      "id": "R11",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 2826.0,
+      "ai_calls": 1,
+      "tokens": 2010,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2825.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R12",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 2392.7,
+      "ai_calls": 1,
+      "tokens": 2025
+    },
+    {
+      "id": "R12",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 1910.6,
+      "ai_calls": 1,
+      "tokens": 2024,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1910.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R13",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 1712.0,
+      "ai_calls": 1,
+      "tokens": 2036
+    },
+    {
+      "id": "R13",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "answer_basis": null,
+      "total_ms": 1900.7,
+      "ai_calls": 1,
+      "tokens": 2088,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1900.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R14",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1646.6,
+      "ai_calls": 1,
+      "tokens": 2016
+    },
+    {
+      "id": "R14",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "answer_basis": null,
+      "total_ms": 1439.0,
+      "ai_calls": 1,
+      "tokens": 2016,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1438.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R15",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 4306.4,
+      "ai_calls": 2,
+      "tokens": 4372
+    },
+    {
+      "id": "R15",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 4300.5,
+      "ai_calls": 2,
+      "tokens": 4374,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 4300.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R16",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1244.2,
+      "ai_calls": 1,
+      "tokens": 566,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.9,
+        "writing": 1240.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R17",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1634.5,
+      "ai_calls": 1,
+      "tokens": 562,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.4,
+        "writing": 1631.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R18",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1348.7,
+      "ai_calls": 1,
+      "tokens": 561,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.0,
+        "writing": 1346.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R19",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1477.0,
+      "ai_calls": 1,
+      "tokens": 488,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 0.6,
+        "writing": 1476.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R20",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 1383.8,
+      "ai_calls": 1,
+      "tokens": 506,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.2,
+        "writing": 1382.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R21",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 2143.2,
+      "ai_calls": 1,
+      "tokens": 592,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 0.6,
+        "writing": 2142.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R22",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "quoted",
+      "total_ms": 13422.1,
+      "ai_calls": 3,
+      "tokens": 4974,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.8,
+        "database": 12096.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R23",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "quoted",
+      "total_ms": 6699.0,
+      "ai_calls": 3,
+      "tokens": 4974,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.4,
+        "database": 4754.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R24",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "tabular",
+      "answer_basis": "written",
+      "total_ms": 4857.9,
+      "ai_calls": 2,
+      "tokens": 3017,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.6,
+        "database": 1795.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R25",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 2222.2,
+      "ai_calls": 2,
+      "tokens": 749,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.1,
+        "writing": 1163.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R26",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 5194.5,
+      "ai_calls": 3,
+      "tokens": 2811,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 6.4,
+        "database": 2641.0
+      },
+      "correct": false
+    },
+    {
+      "id": "R27",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "quoted",
+      "total_ms": 4136.1,
+      "ai_calls": 2,
+      "tokens": 2522,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 3.2,
+        "database": 2673.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R28",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "clarification",
+      "answer_basis": null,
+      "total_ms": 3797.6,
+      "ai_calls": 2,
+      "tokens": 2207,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 2.2,
+        "database": 2469.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R29",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "quoted",
+      "total_ms": 2608.8,
+      "ai_calls": 2,
+      "tokens": 632,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 2.1,
+        "writing": 1277.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R30",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "answer_basis": "written",
+      "total_ms": 7920.5,
+      "ai_calls": 3,
+      "tokens": 2797,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 3.9,
+        "database": 2744.4
+      },
+      "correct": false
+    }
+  ],
+  "benchmark_version": "1",
+  "run_at": "2026-10-19T19:26:27+00:00",
+  "summary": "Routing benchmark (live with written answers), 30 questions\nDocument answers: written=22 quoted=6\nRoute exactly right: 57/60\n  R26: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\n  R26: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\n  R30: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\noriginal cold: n=15 p50=2621.3 ms p95=4897.1 ms stdev=4147.8 ms ai_calls=16 tokens=32768 errors=1\noriginal warm: n=15 p50=1712.0 ms p95=2912.7 ms stdev=746.1 ms ai_calls=16 tokens=32821 errors=0\nrouting  cold: n=30 p50=2295.8 ms p95=7667.5 ms stdev=2185.1 ms ai_calls=45 tokens=63550 errors=0\nrouting  warm: n=30 p50=2143.2 ms p95=9567.5 ms stdev=2944.5 ms ai_calls=44 tokens=60691 errors=0\ndatabase questions cold: extra AI calls from routing = 1, p50 2621.3 -> 2069.5 ms\ndatabase questions warm: extra AI calls from routing = 0, p50 1712.0 -> 1900.7 ms\nroute both: n=13 p50=4919.7 ms p95=11203.9 ms\nroute database: n=30 p50=1910.6 ms p95=9073.1 ms\nroute documents: n=17 p50=1643.6 ms p95=2976.2 ms"
+}

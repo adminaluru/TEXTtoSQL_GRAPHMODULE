@@ -58,6 +58,10 @@ class RepairState:
         default_factory=list
     )
 
+    # A user-facing question from the latest failure (e.g. which of
+    # several attributes was meant), shown if repair does not resolve it.
+    clarification: str | None = None
+
 
 # ==========================================================
 # LLM feedback
@@ -153,6 +157,9 @@ def unresolved_message(
     """
     Clarification after repair attempts are exhausted.
     """
+
+    if state.clarification:
+        return state.clarification
 
     concepts = (
         state.raw_analysis.concepts

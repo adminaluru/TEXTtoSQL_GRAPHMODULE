@@ -1,0 +1,1531 @@
+{
+  "mode": "live",
+  "passes": 2,
+  "rows": [
+    {
+      "id": "R01",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 15066.2,
+      "ai_calls": 1,
+      "tokens": 2031
+    },
+    {
+      "id": "R01",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 4059.7,
+      "ai_calls": 1,
+      "tokens": 2098,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 4057.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R02",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 3477.4,
+      "ai_calls": 1,
+      "tokens": 2028
+    },
+    {
+      "id": "R02",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 2278.2,
+      "ai_calls": 1,
+      "tokens": 2028,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2277.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R03",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 2385.2,
+      "ai_calls": 1,
+      "tokens": 2025
+    },
+    {
+      "id": "R03",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1841.3,
+      "ai_calls": 1,
+      "tokens": 2025,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1840.9
+      },
+      "correct": true
+    },
+    {
+      "id": "R04",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 2945.8,
+      "ai_calls": 1,
+      "tokens": 2018
+    },
+    {
+      "id": "R04",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 2178.0,
+      "ai_calls": 1,
+      "tokens": 2018,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2177.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R05",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 2503.0,
+      "ai_calls": 1,
+      "tokens": 2033
+    },
+    {
+      "id": "R05",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 2904.9,
+      "ai_calls": 1,
+      "tokens": 2080,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2904.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R06",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 2591.0,
+      "ai_calls": 1,
+      "tokens": 2015
+    },
+    {
+      "id": "R06",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1332.4,
+      "ai_calls": 1,
+      "tokens": 2015,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1331.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R07",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1635.7,
+      "ai_calls": 1,
+      "tokens": 2016
+    },
+    {
+      "id": "R07",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1636.7,
+      "ai_calls": 1,
+      "tokens": 2015,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1635.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R08",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 4034.5,
+      "ai_calls": 1,
+      "tokens": 2017
+    },
+    {
+      "id": "R08",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1448.2,
+      "ai_calls": 1,
+      "tokens": 2017,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1447.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R09",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 2506.0,
+      "ai_calls": 1,
+      "tokens": 2014
+    },
+    {
+      "id": "R09",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1778.0,
+      "ai_calls": 1,
+      "tokens": 2014,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1777.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R10",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 2487.5,
+      "ai_calls": 1,
+      "tokens": 2019
+    },
+    {
+      "id": "R10",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1501.3,
+      "ai_calls": 1,
+      "tokens": 2019,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1499.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R11",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1868.4,
+      "ai_calls": 1,
+      "tokens": 2011
+    },
+    {
+      "id": "R11",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1802.1,
+      "ai_calls": 1,
+      "tokens": 2011,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1801.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R12",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1896.2,
+      "ai_calls": 1,
+      "tokens": 2024
+    },
+    {
+      "id": "R12",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1747.0,
+      "ai_calls": 1,
+      "tokens": 2024,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1746.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R13",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1939.9,
+      "ai_calls": 1,
+      "tokens": 2036
+    },
+    {
+      "id": "R13",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1973.2,
+      "ai_calls": 1,
+      "tokens": 2036,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1972.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R14",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1751.0,
+      "ai_calls": 1,
+      "tokens": 2016
+    },
+    {
+      "id": "R14",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1611.2,
+      "ai_calls": 1,
+      "tokens": 2016,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1610.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R15",
+      "mode": "original",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 4864.7,
+      "ai_calls": 2,
+      "tokens": 4343
+    },
+    {
+      "id": "R15",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 11140.7,
+      "ai_calls": 3,
+      "tokens": 6923,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 11140.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R16",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 7.3,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 6.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R17",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 0.9,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 0.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R18",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1.6,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R19",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1.1,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 0.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R20",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1.1,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 0.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R21",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1.1,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 0.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R22",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 4210.8,
+      "ai_calls": 1,
+      "tokens": 2232,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.3,
+        "database": 4162.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R23",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 2957.2,
+      "ai_calls": 1,
+      "tokens": 2152,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 5.2,
+        "database": 2951.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R24",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 13916.8,
+      "ai_calls": 3,
+      "tokens": 7231,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 6.8,
+        "database": 13913.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R25",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1462.2,
+      "ai_calls": 1,
+      "tokens": 186,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R26",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 3684.9,
+      "ai_calls": 2,
+      "tokens": 2229,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 3.4,
+        "database": 1759.6
+      },
+      "correct": false
+    },
+    {
+      "id": "R27",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "clarification",
+      "total_ms": 5469.2,
+      "ai_calls": 2,
+      "tokens": 2221,
+      "route": "database",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "database": 2997.1
+      },
+      "correct": false
+    },
+    {
+      "id": "R28",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "clarification",
+      "total_ms": 3080.5,
+      "ai_calls": 2,
+      "tokens": 2207,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.1,
+        "database": 1593.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R29",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1174.2,
+      "ai_calls": 1,
+      "tokens": 188,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R30",
+      "mode": "routing",
+      "condition": "cold",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1083.8,
+      "ai_calls": 1,
+      "tokens": 187,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 2.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R01",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 3424.1,
+      "ai_calls": 1,
+      "tokens": 2162
+    },
+    {
+      "id": "R01",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1888.7,
+      "ai_calls": 1,
+      "tokens": 2029,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1888.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R02",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1768.5,
+      "ai_calls": 1,
+      "tokens": 2028
+    },
+    {
+      "id": "R02",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1994.4,
+      "ai_calls": 1,
+      "tokens": 2028,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1994.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R03",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1801.0,
+      "ai_calls": 1,
+      "tokens": 2025
+    },
+    {
+      "id": "R03",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1729.2,
+      "ai_calls": 1,
+      "tokens": 2025,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1728.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R04",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1729.6,
+      "ai_calls": 1,
+      "tokens": 2018
+    },
+    {
+      "id": "R04",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1649.0,
+      "ai_calls": 1,
+      "tokens": 2018,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1648.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R05",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 2626.7,
+      "ai_calls": 1,
+      "tokens": 2087
+    },
+    {
+      "id": "R05",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 2380.4,
+      "ai_calls": 1,
+      "tokens": 2089,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2379.9
+      },
+      "correct": true
+    },
+    {
+      "id": "R06",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1519.5,
+      "ai_calls": 1,
+      "tokens": 2015
+    },
+    {
+      "id": "R06",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1480.0,
+      "ai_calls": 1,
+      "tokens": 2015,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1479.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R07",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1786.3,
+      "ai_calls": 1,
+      "tokens": 2015
+    },
+    {
+      "id": "R07",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1525.5,
+      "ai_calls": 1,
+      "tokens": 2016,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1524.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R08",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 2245.9,
+      "ai_calls": 1,
+      "tokens": 2014
+    },
+    {
+      "id": "R08",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1457.8,
+      "ai_calls": 1,
+      "tokens": 2014,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1457.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R09",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1893.5,
+      "ai_calls": 1,
+      "tokens": 2012
+    },
+    {
+      "id": "R09",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1493.6,
+      "ai_calls": 1,
+      "tokens": 2014,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1493.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R10",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1813.3,
+      "ai_calls": 1,
+      "tokens": 2021
+    },
+    {
+      "id": "R10",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 1700.3,
+      "ai_calls": 1,
+      "tokens": 2019,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1699.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R11",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1632.0,
+      "ai_calls": 1,
+      "tokens": 2011
+    },
+    {
+      "id": "R11",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1778.7,
+      "ai_calls": 1,
+      "tokens": 2011,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1778.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R12",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 4971.6,
+      "ai_calls": 2,
+      "tokens": 4337
+    },
+    {
+      "id": "R12",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1735.3,
+      "ai_calls": 1,
+      "tokens": 2024,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1734.7
+      },
+      "correct": true
+    },
+    {
+      "id": "R13",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 1767.2,
+      "ai_calls": 1,
+      "tokens": 2036
+    },
+    {
+      "id": "R13",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "scalar",
+      "total_ms": 2553.4,
+      "ai_calls": 1,
+      "tokens": 2112,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 2552.9
+      },
+      "correct": true
+    },
+    {
+      "id": "R14",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1661.1,
+      "ai_calls": 1,
+      "tokens": 2016
+    },
+    {
+      "id": "R14",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 1502.5,
+      "ai_calls": 1,
+      "tokens": 2016,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 1501.9
+      },
+      "correct": true
+    },
+    {
+      "id": "R15",
+      "mode": "original",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "tabular",
+      "total_ms": 6901.8,
+      "ai_calls": 3,
+      "tokens": 6605
+    },
+    {
+      "id": "R15",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database"
+      ],
+      "outcome": "clarification",
+      "total_ms": 4818.3,
+      "ai_calls": 2,
+      "tokens": 4363,
+      "route": "database",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "database": 4817.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R16",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 2.3,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.6
+      },
+      "correct": true
+    },
+    {
+      "id": "R17",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1.3,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 0.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R18",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1.3,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 0.8
+      },
+      "correct": true
+    },
+    {
+      "id": "R19",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 3.2,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R20",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 2.1,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R21",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1.8,
+      "ai_calls": 0,
+      "tokens": 0,
+      "route": "documents",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R22",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 8995.3,
+      "ai_calls": 2,
+      "tokens": 4756,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 9.7,
+        "database": 8990.0
+      },
+      "correct": true
+    },
+    {
+      "id": "R23",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 9287.1,
+      "ai_calls": 2,
+      "tokens": 4675,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 2.4,
+        "database": 9284.3
+      },
+      "correct": true
+    },
+    {
+      "id": "R24",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 9828.2,
+      "ai_calls": 2,
+      "tokens": 4798,
+      "route": "both",
+      "method": "rules",
+      "classifier_calls": 0,
+      "timings_ms": {
+        "documents": 1.4,
+        "database": 9826.5
+      },
+      "correct": true
+    },
+    {
+      "id": "R25",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 965.2,
+      "ai_calls": 1,
+      "tokens": 186,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 2.1
+      },
+      "correct": true
+    },
+    {
+      "id": "R26",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 2623.3,
+      "ai_calls": 2,
+      "tokens": 2229,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.6,
+        "database": 1636.0
+      },
+      "correct": false
+    },
+    {
+      "id": "R27",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 2902.9,
+      "ai_calls": 2,
+      "tokens": 2227,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.6,
+        "database": 1628.2
+      },
+      "correct": true
+    },
+    {
+      "id": "R28",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "database",
+        "documents"
+      ],
+      "outcome": "clarification",
+      "total_ms": 2960.7,
+      "ai_calls": 2,
+      "tokens": 2207,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 0.9,
+        "database": 1654.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R29",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 1122.0,
+      "ai_calls": 1,
+      "tokens": 188,
+      "route": "documents",
+      "method": "classifier",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.4
+      },
+      "correct": true
+    },
+    {
+      "id": "R30",
+      "mode": "routing",
+      "condition": "warm",
+      "expected": [
+        "documents"
+      ],
+      "outcome": "documents",
+      "total_ms": 2889.6,
+      "ai_calls": 2,
+      "tokens": 2206,
+      "route": "both",
+      "method": "unclear_both",
+      "classifier_calls": 1,
+      "timings_ms": {
+        "documents": 1.4,
+        "database": 1850.6
+      },
+      "correct": false
+    }
+  ],
+  "benchmark_version": "1",
+  "run_at": "2026-10-19T13:09:48+00:00",
+  "summary": "Routing benchmark (live), 30 questions\nRoute exactly right: 56/60\n  R26: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\n  R27: needed source MISSED (expected ['database', 'documents'], got ['text_to_sql'])\n  R26: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\n  R30: extra source searched (expected ['documents'], got ['document_rag', 'text_to_sql'])\noriginal cold: n=15 p50=2503.0 ms p95=4864.7 ms stdev=3219.6 ms ai_calls=16 tokens=32646 errors=0\noriginal warm: n=15 p50=1801.0 ms p95=4971.6 ms stdev=1468.3 ms ai_calls=18 tokens=37402 errors=0\nrouting  cold: n=30 p50=1747.0 ms p95=11140.7 ms stdev=3005.3 ms ai_calls=31 tokens=54172 errors=0\nrouting  warm: n=30 p50=1700.3 ms p95=9287.1 ms stdev=2568.4 ms ai_calls=32 tokens=56265 errors=0\ndatabase questions cold: extra AI calls from routing = 1, p50 2503.0 -> 1802.1 ms\ndatabase questions warm: extra AI calls from routing = -2, p50 1801.0 -> 1729.2 ms\nroute both: n=12 p50=3684.9 ms p95=9828.2 ms\nroute database: n=31 p50=1778.0 ms p95=4818.3 ms\nroute documents: n=17 p50=2.1 ms p95=1174.2 ms"
+}

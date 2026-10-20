@@ -26,6 +26,9 @@ interface FakeApi {
   retryDocument: Mock<ApiClient["retryDocument"]>;
   deleteDocument: Mock<ApiClient["deleteDocument"]>;
   searchDocuments: Mock<ApiClient["searchDocuments"]>;
+  listConversations: Mock<ApiClient["listConversations"]>;
+  getConversation: Mock<ApiClient["getConversation"]>;
+  deleteConversation: Mock<ApiClient["deleteConversation"]>;
 }
 
 function fakeApi(me: MeResponse = ONE_COMPANY): FakeApi {
@@ -39,6 +42,9 @@ function fakeApi(me: MeResponse = ONE_COMPANY): FakeApi {
     retryDocument: vi.fn<ApiClient["retryDocument"]>(),
     deleteDocument: vi.fn<ApiClient["deleteDocument"]>(async () => undefined),
     searchDocuments: vi.fn<ApiClient["searchDocuments"]>(),
+    listConversations: vi.fn<ApiClient["listConversations"]>(async () => ({ conversations: [] })),
+    getConversation: vi.fn<ApiClient["getConversation"]>(),
+    deleteConversation: vi.fn<ApiClient["deleteConversation"]>(async () => undefined),
   };
 }
 

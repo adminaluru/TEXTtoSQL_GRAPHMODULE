@@ -255,12 +255,13 @@ def choice_guard(*results, paths=None, scope=None, max_choices=10):
 
 
 AMBIGUOUS_ROWS = [{"entity_key_0": 1}, {"entity_key_0": 2}]
+NO_EXACT = []  # the whole-name probe that follows an ambiguous substring probe
 CHOICES = [{"entity_key_0": 2, "choice_label_0": "Blue LE-2", "choice_label_1": "Acme Secondary"},
            {"entity_key_0": 1, "choice_label_0": "Blue LE-1", "choice_label_1": "Acme Primary"}]
 
 
 def test_ambiguity_lists_labelled_sorted_choices_inside_scope():
-    guard, executor = choice_guard(AMBIGUOUS_ROWS, CHOICES, scope=True)
+    guard, executor = choice_guard(AMBIGUOUS_ROWS, NO_EXACT, CHOICES, scope=True)
     original = plan()
     result = guard.resolve(original, list_choices=True)
     assert result.plan == original
@@ -273,15 +274,15 @@ def test_ambiguity_lists_labelled_sorted_choices_inside_scope():
 
 
 def test_choices_are_not_listed_unless_requested():
-    guard, executor = choice_guard(AMBIGUOUS_ROWS)
+    guard, executor = choice_guard(AMBIGUOUS_ROWS, NO_EXACT)
     result = guard.resolve(plan())
     assert result.clarification and not result.candidates
-    assert executor.execute.call_count == 1
+    assert executor.execute.call_count == 2
 
 
 def test_too_many_matches_are_not_listed():
     rows = [{"entity_key_0": i, "choice_label_0": f"B{i}", "choice_label_1": "E"} for i in range(3)]
-    guard, _ = choice_guard(AMBIGUOUS_ROWS, rows, max_choices=2)
+    guard, _ = choice_guard(AMBIGUOUS_ROWS, NO_EXACT, rows, max_choices=2)
     result = guard.resolve(plan(), list_choices=True)
     assert "too many" in result.clarification and not result.candidates
 
@@ -289,7 +290,7 @@ def test_too_many_matches_are_not_listed():
 def test_unlabelled_choice_falls_back_to_plain_clarification():
     rows = [{"entity_key_0": 1, "choice_label_0": None, "choice_label_1": None},
             {"entity_key_0": 2, "choice_label_0": "B", "choice_label_1": "E"}]
-    guard, _ = choice_guard(AMBIGUOUS_ROWS, rows)
+    guard, _ = choice_guard(AMBIGUOUS_ROWS, NO_EXACT, rows)
     result = guard.resolve(plan(), list_choices=True)
     assert result.clarification and not result.candidates
 
@@ -297,10 +298,10 @@ def test_unlabelled_choice_falls_back_to_plain_clarification():
 @pytest.mark.parametrize("paths", [[], [join(status="proposed")], [join(target_column="code")],
                                    [join(), join()]])
 def test_label_table_needs_one_confirmed_join_to_its_key(paths):
-    guard, executor = choice_guard(AMBIGUOUS_ROWS, paths=paths)
+    guard, executor = choice_guard(AMBIGUOUS_ROWS, NO_EXACT, paths=paths)
     with pytest.raises(ValueError, match="single confirmed"):
         guard.resolve(plan(), list_choices=True)
-    assert executor.execute.call_count == 1
+    assert executor.execute.call_count == 2
 
 
 def test_selection_is_rechecked_with_name_scope_and_key_then_pinned():
@@ -325,3 +326,63 @@ def test_selection_with_wrong_key_shape_fails_closed():
     with pytest.raises(ValueError, match="does not match"):
         guard.resolve(plan(), selections={(0, "public.customers"): (1, 2)})
     executor.execute.assert_not_called()
+
+
+# A3.9: a whole-name match (case-insensitive) wins over substring matches, so
+# "Blue" is not ambiguous with "Blue Prism"; several whole-name matches narrow
+# the choices; selections are re-checked without the whole-name probe.
+
+def params(executor, call):
+    return executor.execute.call_args_list[call].kwargs["compiled"].parameters
+
+
+def test_single_exact_match_is_pinned_over_substring_matches():
+    guard, executor = choice_guard(AMBIGUOUS_ROWS, [{"entity_key_0": 2}], scope=True)
+    result = guard.resolve(plan(), list_choices=True)
+    assert result.clarification is None
+    assert params(executor, 0) == ["%Blue%", 527]
+    assert params(executor, 1) == ["Blue", 527]
+    assert "ILIKE" in executor.execute.call_args_list[1].kwargs["compiled"].sql
+    assert [(f.column, f.value) for f in result.plan.filters] == [
+        ("name", "%Blue%"), ("company_id", 527), ("id", 2)]
+
+
+def test_several_exact_matches_offer_only_those_as_choices():
+    guard, executor = choice_guard(AMBIGUOUS_ROWS, AMBIGUOUS_ROWS, CHOICES, scope=True)
+    result = guard.resolve(plan(), list_choices=True)
+    assert len(result.candidates) == 2
+    assert params(executor, 2) == ["Blue", 527]
+
+
+def test_no_exact_match_keeps_substring_ambiguity():
+    guard, executor = choice_guard(AMBIGUOUS_ROWS, NO_EXACT)
+    assert guard.resolve(plan()).clarification
+    assert params(executor, 1) == ["Blue"]
+
+
+def test_unique_substring_match_needs_no_exact_probe():
+    guard, executor = choice_guard([{"entity_key_0": 7}])
+    assert guard.resolve(plan()).clarification is None
+    assert executor.execute.call_count == 1
+
+
+def test_selection_is_not_rechecked_by_exact_name():
+    guard, executor = choice_guard([{"entity_key_0": 2}, {"entity_key_0": 3}])
+    result = guard.resolve(plan(), selections={(0, "public.customers"): (2,)})
+    assert result.clarification
+    assert executor.execute.call_count == 1
+
+
+@pytest.mark.parametrize("value,expected", [
+    ("%Blue Prism%", "Blue Prism"),
+    (r"%50\%%", r"50\%"),               # escaped literal % stays escaped
+    (r"%a\_b%", r"a\_b"),
+    ("%a%b%", None),                    # inner wildcard: not a plain contains
+    ("%a_b%", None),
+    (r"%abc\%", None),                  # closing % is escaped
+    ("Blue", None),
+    ("%%", None),
+    (42, None),
+])
+def test_unwrap_contains(value, expected):
+    assert EntityMatchGuard._unwrap_contains(value) == expected

@@ -1,6 +1,15 @@
 from pydantic import BaseModel
 
 
+class OntologyAmbiguityError(ValueError):
+    """A lookup that must find one ontology entry found several.
+
+    Raised instead of picking the first match, which would silently answer
+    from an arbitrary table or relationship. The message is internal (it
+    names ontology keys); the planner shows users a generic refusal.
+    """
+
+
 class TableMetadata(BaseModel):
     """
     Canonical representation of a physical PostgreSQL

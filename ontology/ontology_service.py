@@ -1,6 +1,7 @@
 from database.neo4j import Neo4jClient
 
 from ontology.models import (
+    OntologyAmbiguityError,
     JoinMetadata,
     PhysicalPath,
     SemanticRelationship,
@@ -27,6 +28,18 @@ class OntologyService:
         neo4j_client: Neo4jClient,
     ) -> None:
         self._neo4j = neo4j_client
+
+    @staticmethod
+    def _require_single_relationship(rows) -> None:
+        # Lookups fetch two rows so a second match is detected instead of
+        # silently ignored.
+        if len(rows) > 1:
+            raise OntologyAmbiguityError(
+                "Several business relationships between "
+                f"{rows[0]['source_table_key']} and "
+                f"{rows[0]['target_table_key']}: "
+                f"{sorted(r['relationship_type'] for r in rows)}"
+            )
 
     # ======================================================
     # Concept -> Physical Table
@@ -58,7 +71,7 @@ class OntologyService:
             t.business_concept AS business_concept,
             t.business_domain AS business_domain
 
-        LIMIT 1
+        LIMIT 2
         """
 
         rows = self._neo4j.execute_read(
@@ -70,6 +83,12 @@ class OntologyService:
 
         if not rows:
             return None
+
+        if len(rows) > 1:
+            raise OntologyAmbiguityError(
+                f"Concept {concept!r} maps to several tables: "
+                f"{sorted(r['key'] for r in rows)}"
+            )
 
         return TableMetadata(
             **rows[0]
@@ -494,7 +513,7 @@ class OntologyService:
             r.validation_status
                 AS validation_status
 
-        LIMIT 1
+        LIMIT 2
         """
 
         rows = self._neo4j.execute_read(
@@ -510,6 +529,8 @@ class OntologyService:
 
         if not rows:
             return None
+
+        self._require_single_relationship(rows)
 
         row = rows[0]
 
@@ -667,7 +688,7 @@ class OntologyService:
             r.validation_status
                 AS validation_status
 
-        LIMIT 1
+        LIMIT 2
         """
 
         rows = self._neo4j.execute_read(
@@ -683,6 +704,8 @@ class OntologyService:
 
         if not rows:
             return None
+
+        self._require_single_relationship(rows)
 
         row = rows[0]
 

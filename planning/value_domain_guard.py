@@ -62,6 +62,20 @@ class ValueDomainGuard:
                                                                known=listed))
         return ValueDomainResult(resolved)
 
+    def holds(self, table: str, column: str, value) -> bool | None:
+        """
+        Whether the column holds this value (case-insensitive), inside the
+        caller's scope. None when it cannot tell: not a text value, not a
+        small-domain column, or too many distinct values to list.
+        """
+        if not isinstance(value, str) or not self._is_domain_column(table, column):
+            return None
+        known = self._known_values(table, column)
+        if known is None:
+            return None
+        wanted = value.strip().casefold()
+        return any(v.strip().casefold() == wanted for v in known)
+
     def _is_domain_column(self, table: str, column: str) -> bool:
         for c in self._ontology.get_table_columns(table):
             if c.name == column:

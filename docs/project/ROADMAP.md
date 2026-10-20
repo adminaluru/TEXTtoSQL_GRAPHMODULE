@@ -4,8 +4,8 @@ Updated 2026-10-15. Detailed actions: `ACTION_REGISTER.md`. Decisions: `DECISION
 
 | Step | What | Status | Notes |
 |------|------|--------|-------|
-| 1 | Baseline, reproducible tests, CI | Done | A1.3 (dedicated test database in CI) open |
-| 2 | Customer scope, clarification flow, tenant isolation of every table | Done | A2.4 leak fix (2026-10-15); A-OWN-1 ownership to confirm; A2.3 metric catalog open |
+| 1 | Baseline, reproducible tests, CI | Done | A1.3 done 2026-10-20: integration tests run in CI on fixtures |
+| 2 | Customer scope, clarification flow, tenant isolation of every table | Done | A2.4 leak fix (2026-10-15); A-OWN-1 confirmed 2026-10-19; A2.3 metric catalog open |
 | 3 | SQL correctness (dates, currency, status, empty groups, missing values, EXISTS) | Done | A3.9 remaining items (entity matching, path ranking, composite keys) |
 | 4 | Shared contracts 0.3.0, SQL adapter | Done | |
 | 5 | Caller identity (dev tokens now, Entra ID by configuration) | Done | Production membership source open |
@@ -14,19 +14,19 @@ Updated 2026-10-15. Detailed actions: `ACTION_REGISTER.md`. Decisions: `DECISION
 | 13a | **Chat UI, Phase 1 (pulled forward, D-009)** | Done | SQL answers only; 41 UI tests; first live run done (found A2.4) |
 | 8 | Document ingestion (Word, PDF, Excel) | Done (2026-10-15) | D-010; upload API ready; searching passages is Step 9 |
 | 9 | Document retrieval | Done (2026-10-16) | Quoted passages with citations; search in the UI |
-| 13b | Chat UI, Phase 2 | Uploads done early (A13.4); rest after 9 | Document evidence and quotes in answers |
+| 13b | Chat UI, Phase 2 | Done (2026-10-19, with A12d) | Document evidence and citations in answers, saved conversations |
 | 10 | Graph evidence retrieval | Later | Graph route stays off until then | |
-| 11 | Routing and hybrid coordination | Done (live benchmark pending) | D-011; one chat question answered from database, documents or both | |
-| 12 | Grounded answers, saved conversations | | Conversation history moves server-side |
+| 11 | Routing and hybrid coordination | Done (live benchmark 2026-10-19) | D-011; one chat question answered from database, documents or both | |
+| 12 | Grounded answers, saved conversations | Done (2026-10-19) | D-012; written and combined answers off by default, development only; benchmark meets p50/p95 overall, two-part questions p95 11.2 s |
 | 13c | UI completion | | Browser end-to-end tests, all flows |
 | 14 | Release evidence, deployment | | |
 
 ## Next best actions
 
 1. Done 2026-10-15: live UI re-test passed (per-company totals, chosen-record wording, open invoices, April 2026).
-2. Owner: confirm ownership assumption A-OWN-1 and the 5 unmapped tables.
-3. Run the live routing benchmark (`python -m tools.run_routing_benchmark --live`, costs tokens), then set a response-time target.
-4. Next: Step 12 grounded answers (written answers from passages, each claim linked to its source) or Step 10 graph evidence.
+2. Done 2026-10-19: ownership A-OWN-1 confirmed, 5 tables added; 2 ontology links to confirm (see ACTION_REGISTER P1).
+3. Done 2026-10-19: live routing benchmark; target p50 < 3 s, p95 < 10 s (A11.5).
+4. Done 2026-10-19: Step 12 (D-012). Done 2026-10-20: test database for CI (A1.3). Next: Step 6 permissions before real users.
 5. Before any real user: Step 6 permission matrix; random `flowone_reader` password; TLS.
 
 ## UI Phase 1 scope (D-009)
@@ -43,7 +43,7 @@ Adjusted from the owner's mock-up so the screen never shows what the system cann
 | "Disputed" badge | Real stored statuses only, until the metric catalog defines "disputed" (A2.3) |
 | Document quotes, upload panel | Database evidence only; documents panel shows "Not available yet" (no placeholder content) |
 | Workspace switch | Starts a fresh conversation; nothing from the previous company is reused |
-| Conversation list | Kept in the browser session until Step 12 |
+| Conversation list | Saved on the server per user and company (Step 12c/12d) |
 | Role in footer | Displayed only; hiding by role is the server's job (Step 6) |
 
 ## Negative scenarios the UI must handle (without changing the architecture)

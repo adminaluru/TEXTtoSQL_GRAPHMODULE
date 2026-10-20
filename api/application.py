@@ -25,8 +25,10 @@ from answering.models import (
 
 from fastapi.middleware.cors import CORSMiddleware
 
+from adapters.conversation_store import SqliteConversationStore
+from api.conversation_routes import add_conversation_routes
 from api.document_routes import add_document_routes
-from api.identity import authenticate_request, identify_request
+from api.identity import authenticate_request, bearer_token, identify_request
 from api.models import (
     APIErrorResponse,
     AskRequest,
@@ -39,7 +41,7 @@ from document_ingestion import DocumentIngestionService
 from document_retrieval import DocumentRetriever
 from hybrid_contracts import AccessContext, ClarificationResponse
 from observability.deadline import DeadlineExceeded
-from trusted_identity import IdentityVerifier
+from trusted_identity import AuthenticationError, IdentityVerifier
 
 from observability.perf import (
     new_request_id,
@@ -184,6 +186,30 @@ def _client_key(
     return peer
 
 
+def _rate_limit_key(
+    request: Request,
+    trusted_networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network],
+    identity: IdentityVerifier | None,
+) -> str:
+    """
+    One bucket per verified caller in jwt mode, so callers behind one
+    proxy do not share a limit and one caller cannot spread requests
+    over many addresses. Requests without a valid token (rejected later
+    with 401) are limited by client address.
+    """
+    if identity is not None:
+        token = bearer_token(request)
+        if token:
+            try:
+                principal = identity.verify(token)
+            except AuthenticationError:
+                pass
+            else:
+                return f"{principal.kind}:{principal.subject_id}"
+
+    return f"ip:{_client_key(request, trusted_networks)}"
+
+
 def _require_api_key(
     api_key_override: str | None = None,
 ):
@@ -322,6 +348,7 @@ def create_app(
     documents: DocumentIngestionService | None = None,
     document_max_file_bytes: int = 25 * 1024 * 1024,
     document_search: DocumentRetriever | None = None,
+    conversations: SqliteConversationStore | None = None,
 ) -> FastAPI:
     """
     Create the FastAPI application with an injected
@@ -401,9 +428,11 @@ def create_app(
 
     @app.middleware("http")
     async def enforce_rate_limit(request: Request, call_next):
-        # Questions and uploads are limited; reads are not.
+        # Questions, clarification answers and uploads are limited; reads
+        # are not. /clarify runs a database query like /ask.
         limited = request.url.path == "/ask" or (
-            request.method == "POST" and request.url.path in ("/documents", "/documents/search"))
+            request.method == "POST"
+            and request.url.path in ("/clarify", "/documents", "/documents/search"))
         if not limited:
             return await call_next(request)
 
@@ -425,7 +454,7 @@ def create_app(
 
             app.state.rate_limit_last_sweep = now
 
-        key = _client_key(request, trusted_networks)
+        key = _rate_limit_key(request, trusted_networks, identity)
         history = windows[key]
 
         while history and now - history[0] > RATE_LIMIT_WINDOW_SECONDS:
@@ -580,10 +609,21 @@ def create_app(
             else None
         )
 
-        return _answer_safely(
+        result = _answer_safely(
             request_id,
             lambda: agent_for_caller(access).ask(question, caller=caller),
         )
+
+        _save_turn(
+            conversations,
+            access,
+            request.conversation_id,
+            result,
+            request_id,
+            question=question,
+        )
+
+        return result
 
     # ======================================================
     # Clarify (jwt mode only)
@@ -635,14 +675,50 @@ def create_app(
                 option_id=request.option_id,
             )
 
-            return _answer_safely(
+            result = _answer_safely(
                 request_id,
                 lambda: agent_for_caller(access).resume(reply, caller=caller),
             )
+
+            _save_turn(
+                conversations,
+                access,
+                request.conversation_id,
+                result,
+                request_id,
+                option_id=request.option_id,
+            )
+
+            return result
 
     if documents is not None:
         if identity is None:
             raise ValueError("Documents need AUTH_MODE=jwt: each document belongs to the caller's workspace.")
         add_document_routes(app, identity, documents, document_max_file_bytes, retriever=document_search)
 
+    if conversations is not None:
+        if identity is None:
+            raise ValueError("Saved conversations need AUTH_MODE=jwt: each belongs to one verified user.")
+        add_conversation_routes(app, identity, conversations)
+
     return app
+
+
+def _save_turn(conversations, access, conversation_id, result, request_id,
+               question: str | None = None, option_id: str | None = None) -> None:
+    """
+    Save a successful question (or clarification choice) and its answer
+    (Step 12c). Errors are not saved. A storage failure is logged and never
+    changes the answer the caller receives.
+    """
+    if conversations is None or not conversation_id or not isinstance(result, AnswerResponse):
+        return
+    try:
+        if question is not None:
+            conversations.add_question(access.tenant_id, access.subject_id, conversation_id, question)
+        if option_id is not None:
+            conversations.add_choice(access.tenant_id, access.subject_id, conversation_id, option_id)
+        conversations.add_answer(access.tenant_id, access.subject_id, conversation_id,
+                                 result.model_dump(mode="json"))
+    except Exception:
+        logger.warning("FLOWONE_CONVERSATION_SAVE_FAILED request_id=%s", request_id, exc_info=True)

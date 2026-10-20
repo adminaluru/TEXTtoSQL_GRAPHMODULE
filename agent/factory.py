@@ -251,12 +251,6 @@ def build_research_agent(
     # Entity COUNT semantics should not be interpreted here.
     # ======================================================
 
-    column_resolver = (
-        ColumnResolver(
-            ontology
-        )
-    )
-
     # ======================================================
     # 7. Physical QueryPlan construction
     #
@@ -334,6 +328,22 @@ def build_research_agent(
         or PostgreSQLExecutor()
     )
 
+    # Stored-value lookups inside the caller's scope: checks text conditions
+    # before answering, and lets the column resolver break a tie between
+    # equally named columns by the condition's value ("open" -> lifecycle status).
+    value_domain_guard = ValueDomainGuard(
+        ontology,
+        ProbeRunner(sql_compiler, sql_validator, sql_guardrails, executor),
+        scope_policy=entity_scope_policy,
+    )
+
+    column_resolver = (
+        ColumnResolver(
+            ontology,
+            value_matcher=value_domain_guard.holds,
+        )
+    )
+
     # ======================================================
     # 12. Result analysis
     # ======================================================
@@ -389,11 +399,7 @@ def build_research_agent(
         # Always on (D-006): totals say how many records had no value.
         missing_value_policy=MissingValuePolicy(ontology),
 
-        value_domain_guard=ValueDomainGuard(
-            ontology,
-            ProbeRunner(sql_compiler, sql_validator, sql_guardrails, executor),
-            scope_policy=entity_scope_policy,
-        ),
+        value_domain_guard=value_domain_guard,
 
         question_analyzer=
             question_analyzer,

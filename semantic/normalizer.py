@@ -943,6 +943,12 @@ class SemanticQueryNormalizer:
             else singular_last + "s"
         )
 
+        plural_concept = (
+            concept_norm
+            if concept_norm.endswith("s")
+            else concept_norm + "s"
+        )
+
         accepted = {
             f"{singular_last} count",
             f"{plural_last} count",
@@ -952,6 +958,17 @@ class SemanticQueryNormalizer:
 
             f"number of {singular_last}",
             f"number of {plural_last}",
+
+            # The model sometimes names the counted records themselves
+            # ("invoices" for "How many open invoices are there?"); on
+            # this concept that can only mean counting its records.
+            concept_norm,
+            plural_concept,
+            singular_last,
+            plural_last,
+            "record",
+            "records",
+            f"{singular_last} records",
         }
 
         return (

@@ -2,7 +2,8 @@
 import pytest
 from hybrid_contracts import Route
 
-from question_router import (DOCUMENTS_ONLY_NONE, NO_DOCUMENTS, QuestionRouter, RouteVocabulary, classify)
+from question_router import (DOCUMENTS_ONLY_NONE, NO_DOCUMENTS, QuestionRouter, RouteVocabulary, classify,
+                             database_part)
 
 VOCAB = RouteVocabulary(record_words=frozenset({"invoice", "payment", "claim", "customer", "promise"}))
 ALL = {Route.SQL, Route.DOCUMENT}
@@ -33,6 +34,9 @@ class Classifier:
     ("Which clause covers disputes?", {DOC}),
     ("What does the policy say about late fees, and how many invoices are overdue?", {SQL, DOC}),
     ("How many claims are open and what does the dispute procedure require?", {SQL, DOC}),
+    ("Why was invoice INV-1001 adjusted?", {SQL, DOC}),
+    ("What is the reason for the claim on Blue Prism's invoice?", {SQL, DOC}),
+    ("Why does the policy require approval?", {DOC}),
 ])
 def test_clear_questions_are_routed_by_rules_alone(question, routes):
     verdict = classify(question, VOCAB)
@@ -43,6 +47,7 @@ def test_clear_questions_are_routed_by_rules_alone(question, routes):
     "What is the late payment fee?",
     "When should we follow up with Blue Prism?",
     "Tell me about Blue Prism",
+    "Why is that?",
 ])
 def test_unclear_wording_is_not_decided_by_rules(question):
     assert not classify(question, VOCAB).clear
@@ -92,3 +97,33 @@ def test_record_words_come_from_the_application():
     other = RouteVocabulary(record_words=frozenset({"shipment"}))
     assert classify("How many shipments left today?", other).routes == {SQL}
     assert not classify("How many shipments left today?", VOCAB).clear
+
+
+# Step 12b: the database is asked only its half of a clear two-part question.
+
+@pytest.mark.parametrize("question,part", [
+    ("How many invoices are overdue, and what does the policy say about late fees?", "How many invoices are overdue?"),
+    ("What does the policy say about late fees, and how many invoices are overdue?", "How many invoices are overdue?"),
+    ("What is the total claim amount; what does the dispute procedure require?", "What is the total claim amount?"),
+])
+def test_two_part_question_gives_the_database_its_half(question, part):
+    assert database_part(question, VOCAB) == part
+
+
+@pytest.mark.parametrize("question", [
+    "How many invoices and payments are there?",                                   # one part
+    "What does the policy say about late fees and what does the contract say?",    # documents only
+    "How many invoices are overdue and tell me about Blue Prism?",                 # a part the rules cannot place
+])
+def test_no_split_unless_every_part_is_clearly_one_kind(question):
+    assert database_part(question, VOCAB) is None
+
+
+def test_plan_carries_the_database_half_only_for_both_routes():
+    router = QuestionRouter(VOCAB)
+    both = router.plan("How many invoices are overdue, and what does the policy say about late fees?", ALL)
+    assert both.routes == (SQL, DOC) and both.database_question == "How many invoices are overdue?"
+    assert router.plan("How many invoices are overdue?", ALL).database_question is None
+    # Documents unavailable: database only, whole question.
+    assert router.plan("How many invoices are overdue, and what does the policy say about late fees?",
+                       {SQL}).database_question is None

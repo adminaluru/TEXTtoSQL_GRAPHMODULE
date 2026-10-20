@@ -23,7 +23,7 @@ from planning.column_models import (
 )
 
 from planning.date_period import business_today, parse_period
-from planning.errors import UnsupportedPredicateError
+from planning.errors import AmbiguousAttributeError, UnsupportedPredicateError
 
 from planning.graph_models import GraphPlan
 
@@ -114,11 +114,18 @@ class ColumnResolver:
         self,
         ontology_service: OntologyService,
         today: Callable[[], date] = business_today,
+        value_matcher: Callable[[str, str, object], bool | None] | None = None,
     ) -> None:
 
         self._ontology = (
             ontology_service
         )
+
+        # (table, column, value) -> does the column hold the value (None:
+        # cannot tell). Breaks a tie between equally named columns using the
+        # condition's value, e.g. "open" is a lifecycle status, not a
+        # transaction status. Injected; without it ties are clarified.
+        self._value_matcher = value_matcher
 
         # "Today" in the business time zone (D-007), injectable
         # so relative periods are testable.
@@ -178,21 +185,37 @@ class ColumnResolver:
                     f"table: {table.key}"
                 )
 
-            column, score = (
-                self._resolve_attribute(
-                    concept=
-                        entity.concept,
+            try:
 
-                    attribute=
-                        entity.attribute,
+                column, score = (
+                    self._resolve_attribute(
+                        concept=
+                            entity.concept,
 
-                    columns=
-                        columns,
+                        attribute=
+                            entity.attribute,
 
-                    prefer_measure=
-                        False,
+                        columns=
+                            columns,
+
+                        prefer_measure=
+                            False,
+                    )
                 )
-            )
+
+            except AmbiguousAttributeError as exc:
+
+                column = self._choose_by_value(
+                    table.key,
+                    entity.value,
+                    exc.candidates,
+                )
+
+                if column is None:
+                    raise
+
+                # Chosen because only this column holds the value.
+                score = self.MIN_FILTER_SCORE
 
             if score < self.MIN_FILTER_SCORE:
 
@@ -1098,11 +1121,27 @@ class ColumnResolver:
                 in tied
             ]
 
-            raise ValueError(
+            # A tie between columns that do not really match (e.g. a
+            # nonsense phrase scoring equally low everywhere) is not a
+            # choice to offer the user.
+            matched = best_score >= (
+                self.MIN_MEASURE_SCORE
+                if prefer_measure
+                else self.MIN_FILTER_SCORE
+            )
+
+            raise AmbiguousAttributeError(
                 "Ambiguous column resolution for "
                 f"'{attribute}' "
                 f"under concept '{concept}'. "
-                f"Candidates: {candidates}"
+                f"Candidates: {candidates}",
+                self._ambiguity_question(
+                    attribute,
+                    [item[1] for item in tied],
+                )
+                if matched
+                else None,
+                tuple(item[1] for item in tied) if matched else (),
             )
 
         # ==================================================
@@ -1153,7 +1192,15 @@ class ColumnResolver:
                     ranked[1][1].key,
                 ]
 
-                raise ValueError(
+                contenders = [
+                    item[1]
+                    for item in ranked
+                    if item[0] >= threshold
+                    and best_score - item[0]
+                    < self.MIN_SCORE_MARGIN
+                ]
+
+                raise AmbiguousAttributeError(
                     "Ambiguous column resolution for "
                     f"'{attribute}' "
                     f"under concept '{concept}'. "
@@ -1161,12 +1208,84 @@ class ColumnResolver:
                     f"Scores: "
                     f"{best_score}, "
                     f"{second_score}. "
-                    f"Margin: {margin}"
+                    f"Margin: {margin}",
+                    self._ambiguity_question(
+                        attribute,
+                        contenders,
+                    ),
+                    tuple(contenders),
                 )
 
         return (
             best_column,
             best_score,
+        )
+
+    MAX_AMBIGUITY_OPTIONS = 4
+
+    def _choose_by_value(
+        self,
+        table_key: str,
+        value,
+        candidates: tuple[ColumnMetadata, ...],
+    ) -> ColumnMetadata | None:
+        """
+        The one tied column that holds the condition's value, or None (the
+        tie stands and the user is asked). Never guesses between columns
+        that both, or neither, hold it.
+        """
+
+        if self._value_matcher is None or not candidates:
+            return None
+
+        holding = [
+            column
+            for column in candidates
+            if self._value_matcher(table_key, column.name, value) is True
+        ]
+
+        return holding[0] if len(holding) == 1 else None
+
+    @classmethod
+    def _ambiguity_question(
+        cls,
+        attribute: str,
+        columns: list[ColumnMetadata],
+    ) -> str | None:
+        """
+        Ask the user to choose, using each column's business label (the
+        first sentence of its ontology description, without notes in
+        brackets). Physical names are never shown: without a distinct
+        label for every candidate, the question stays generic. Too many
+        candidates is not a useful choice (None: generic message).
+        """
+
+        if len(columns) > cls.MAX_AMBIGUITY_OPTIONS:
+            return None
+
+        labels: list[str] = []
+
+        for column in columns:
+            first = (column.description or "").split(". ")[0]
+            label = re.sub(r"\s*\([^)]*\)", "", first).strip().rstrip(".")
+            if not label or label.lower() in (seen.lower() for seen in labels):
+                labels = []
+                break
+            labels.append(label[0].lower() + label[1:])
+
+        phrase = attribute.strip() or "This"
+
+        if len(labels) < 2:
+            return (
+                f'"{phrase}" could mean more than one thing in the '
+                "data. Please say more precisely which one you mean."
+            )
+
+        options = ", ".join(labels[:-1]) + " or " + labels[-1]
+
+        return (
+            f'"{phrase}" could mean {options}. '
+            "Which one do you mean?"
         )
 
     def _prefer_phrase_as_given(

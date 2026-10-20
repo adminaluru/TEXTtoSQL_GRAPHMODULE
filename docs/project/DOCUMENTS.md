@@ -59,3 +59,18 @@ Each result is a passage quoted exactly as stored, with its citation (`terms.pdf
 the words may match ("payment" also finds "payments"); best matches come first. Nothing is
 summarised or reworded. A search with no match says so; a search made only of filler words
 ("what is the") asks for better words.
+
+## Written answers (Step 12a, decision D-012)
+
+Off by default. With `GROUNDED_ANSWERS_ENABLED=true` in `.env` (development only; the API refuses to
+start with it when `APP_ENV=production`), a document question gets a short written answer:
+
+- each sentence ends with the numbers of the passages it came from, e.g. `[1]`, counting the
+  passages listed under the answer from 1;
+- a sentence is left out when it cites no shown passage, contains a number not in its passages, or
+  shares too few words with them (a warning says how many were left out);
+- when no sentence survives, or the documents do not answer the question, the passages are shown
+  quoted, as before. `answer_basis` in the JSON says which: `written` or `quoted`.
+
+This sends the question and the retrieved passage text to the AI provider. Measure changes with
+`python -m tools.run_answer_eval --live` (15 questions, about 8,000 tokens).

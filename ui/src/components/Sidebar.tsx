@@ -1,26 +1,44 @@
-import type { Conversation } from "../state/useChat";
+import type { ChatError, Conversation, ListStatus } from "../state/useChat";
 
 interface Props {
   conversations: Conversation[];
   activeId: string | null;
+  listStatus: ListStatus;
+  listError: ChatError | null;
   roleLabel: string;
   subject: string;
   onNew: () => void;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-export function Sidebar({ conversations, activeId, roleLabel, subject, onNew, onSelect }: Props) {
+export function Sidebar(props: Props) {
+  const { conversations, activeId, listStatus, listError, roleLabel, subject } = props;
+
   return (
     <nav className="panel sidebar" aria-label="Conversations">
-      <button type="button" className="primary" onClick={onNew}>＋ New conversation</button>
+      <button type="button" className="primary" onClick={props.onNew}>＋ New conversation</button>
 
-      <p className="section-label">Conversations (this session)</p>
+      <p className="section-label">Your conversations</p>
+      {listStatus === "loading" && conversations.length === 0 && <p className="muted" role="status">Loading…</p>}
+      {listError && <p className="notice" role="alert">{listError.message}</p>}
       <ul className="conversation-list">
-        {conversations.length === 0 && <li className="muted">No conversations yet.</li>}
+        {listStatus !== "loading" && conversations.length === 0 && <li className="muted">No conversations yet.</li>}
         {conversations.map((c) => (
-          <li key={c.id}>
-            <button type="button" aria-current={c.id === activeId} onClick={() => onSelect(c.id)}>
+          <li key={c.id} className="conversation-item">
+            <button type="button" aria-current={c.id === activeId} onClick={() => props.onSelect(c.id)}>
               {c.title}
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={`Delete conversation: ${c.title}`}
+              title="Delete conversation"
+              onClick={() => {
+                if (window.confirm(`Delete “${c.title}”? This cannot be undone.`)) props.onDelete(c.id);
+              }}
+            >
+              ×
             </button>
           </li>
         ))}

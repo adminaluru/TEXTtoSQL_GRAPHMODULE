@@ -348,3 +348,30 @@ def test_customer_payment_sql_compilation():
     finally:
 
         neo4j.close()
+
+# Mixed-case column names (e.g. d_external_erp_invoice_load."company_Id")
+# are quoted; PostgreSQL folds unquoted names to lowercase and would fail.
+
+def test_mixed_case_columns_are_quoted_everywhere():
+    from planning.models import QueryAggregation, QueryFilter, QueryGrouping, QueryJoin, QueryPlan
+    plan = QueryPlan(
+        intent="aggregate",
+        tables=["public.loads", "public.invoices"],
+        joins=[QueryJoin(left_table="public.loads", left_column="invoice_Ref", right_table="public.invoices",
+                         right_column="id", join_type="INNER", validation_status="confirmed")],
+        filters=[QueryFilter(table="public.loads", column="company_Id", operator="=", value=527)],
+        groupings=[QueryGrouping(table="public.loads", column="load_Type")],
+        aggregations=[QueryAggregation(function="SUM", table="public.loads", column="amount_Usd", alias="total")],
+    )
+    sql = DeterministicSQLCompiler().compile(plan).sql
+    for quoted in ('t0."invoice_Ref" = t1.id', 't0."company_Id" = %s', 't0."load_Type"', 'SUM(t0."amount_Usd")'):
+        assert quoted in sql, (quoted, sql)
+
+
+def test_lowercase_columns_stay_unquoted():
+    from planning.models import QueryFilter, QueryPlan, QueryProjection
+    plan = QueryPlan(intent="list", tables=["public.loads"],
+                     projections=[QueryProjection(table="public.loads", column="id", alias="id")],
+                     filters=[QueryFilter(table="public.loads", column="company_id", operator="=", value=1)])
+    sql = DeterministicSQLCompiler().compile(plan).sql
+    assert '"' not in sql

@@ -33,6 +33,11 @@ export function ChatPanel(props: Props) {
           </div>
         )}
 
+        {conversation && !conversation.loaded && !conversation.loadError && (
+          <p className="loading-state" role="status">Loading conversation…</p>
+        )}
+        {conversation?.loadError && <ErrorNotice error={conversation.loadError} />}
+
         {conversation?.messages.map((m) => (
           <div key={m.id}>
             {m.role === "user" && <div className="bubble-user">{m.text}</div>}
@@ -54,7 +59,7 @@ export function ChatPanel(props: Props) {
         {busy && <p className="thinking" role="status">Working on it…</p>}
       </div>
 
-      <Composer busy={busy} disabled={!canAsk} onSend={props.onSend} />
+      <Composer busy={busy} disabled={!canAsk || (!!conversation && !conversation.loaded)} onSend={props.onSend} />
     </main>
   );
 }

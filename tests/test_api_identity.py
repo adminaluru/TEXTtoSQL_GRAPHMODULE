@@ -365,3 +365,42 @@ def test_only_listed_origins_are_allowed():
 def test_wildcard_origin_is_refused():
     with pytest.raises(ValueError, match="not allowed"):
         create_app(Mock(), cors_allowed_origins=["*"])
+
+
+# ------------------------------------------------------------ rate limit per caller
+
+def limited_client(limit=2):
+    app = create_app(Mock(), identity=IdentityVerifier(SETTINGS), agent_for=lambda access: fake_agent(),
+                     rate_limit_requests_per_minute=limit)
+    return TestClient(app)
+
+
+def ask(client, bearer):
+    return client.post("/ask", json={"question": "Q"}, headers=headers(bearer)).status_code
+
+
+def test_callers_behind_one_address_have_their_own_limits():
+    with limited_client() as client:
+        alice, bob = token(subject="alice"), token(subject="bob")
+        assert [ask(client, alice) for _ in range(3)] == [200, 200, 429]
+        assert ask(client, bob) == 200
+
+
+def test_new_tokens_for_the_same_caller_share_one_limit():
+    with limited_client() as client:
+        assert [ask(client, token(subject="alice", ttl_seconds=600 + i)) for i in range(3)] == [200, 200, 429]
+
+
+def test_requests_without_a_valid_token_are_limited_by_address():
+    with limited_client() as client:
+        assert [ask(client, b) for b in (None, "not-a-token", None)] == [401, 401, 429]
+        # A verified caller from the same address is not blocked by them.
+        assert ask(client, token()) == 200
+
+
+def test_clarification_answers_count_towards_the_limit():
+    with limited_client(limit=1) as client:
+        assert ask(client, token()) == 200
+        response = client.post("/clarify", json={"conversation_id": "c", "clarification_id": "x",
+                                                 "option_id": "y"}, headers=headers(token()))
+        assert response.status_code == 429

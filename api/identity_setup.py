@@ -27,6 +27,13 @@ def require_safe_auth_mode(settings) -> None:
         raise RuntimeError("Production requires AUTH_MODE=jwt; the shared API key has no per-user identity.")
 
 
+def require_safe_grounded_answers(settings) -> None:
+    """D-012: document text goes to the AI provider only for synthetic development data."""
+    if is_production(settings) and getattr(settings, "grounded_answers_enabled", False):
+        raise RuntimeError("GROUNDED_ANSWERS_ENABLED sends document text to the AI provider; "
+                           "decision D-012 allows it for development data only.")
+
+
 def identity_settings_from(settings) -> IdentitySettings:
     claims = ClaimMapping(
         subject=settings.identity_subject_claim,

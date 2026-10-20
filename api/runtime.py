@@ -20,8 +20,12 @@ from api.document_setup import document_service_from, start_document_processing
 from agent.hybrid import HybridAssistant, load_route_vocabulary
 from nlu.route_classifier import LLMRouteClassifier
 from question_router import QuestionRouter
+from grounded_answers import GroundedAnswerWriter
+from adapters.conversation_store import SqliteConversationStore
+from answering.grounded_drafter import chat_drafter
 from execution.pool_reset import reset_session
 from api.identity_setup import (
+    require_safe_grounded_answers,
     identity_verifier_from,
     require_safe_auth_mode,
     tenant_resolver_from_file,
@@ -147,6 +151,7 @@ research_agent = build_research_agent(
 # ==========================================================
 
 require_safe_auth_mode(settings)
+require_safe_grounded_answers(settings)
 
 identity = None
 agent_for = None
@@ -211,6 +216,11 @@ if agent_for is not None and document_search is not None and settings.routing_en
         LLMRouteClassifier(chat_model) if settings.route_classifier_enabled else None,
     )
     research_agent_for = agent_for
+    answer_writer = (
+        GroundedAnswerWriter(chat_drafter(chat_model))
+        if settings.grounded_answers_enabled
+        else None
+    )
 
     def agent_for(access):
         return HybridAssistant(
@@ -220,7 +230,22 @@ if agent_for is not None and document_search is not None and settings.routing_en
             document_retriever=document_search,
             has_documents=document_parts.has_documents,
             request_timeout_seconds=settings.request_timeout_seconds,
+            answer_writer=answer_writer,
         )
+
+
+# ==========================================================
+# SAVED CONVERSATIONS (Step 12c, decision D-012)
+#
+# jwt mode only: each conversation belongs to one verified user
+# in one company.
+# ==========================================================
+
+conversations = None
+
+if settings.auth_mode == "jwt" and settings.conversations_enabled:
+
+    conversations = SqliteConversationStore(settings.conversation_storage_path)
 
 
 # ==========================================================
@@ -233,6 +258,7 @@ app = create_app(
     identity=identity,
     agent_for=agent_for,
     cors_allowed_origins=settings.cors_allowed_origins,
+    conversations=conversations,
     startup_validator=_validate_runtime_dependencies,
     # The LLM provider is deliberately excluded: a third-party
     # outage should not pull every replica out of rotation.
